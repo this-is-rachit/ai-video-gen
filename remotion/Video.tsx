@@ -1,41 +1,64 @@
 // remotion/Video.tsx
 import React from "react";
-import { AbsoluteFill, Audio, Series } from "remotion";
+import { AbsoluteFill, Audio, interpolate, Series, useCurrentFrame } from "remotion";
 import { Project, Scene } from "@/lib/schema";
-import { theme } from "./theme";
+import { ThemeContext, themeFor } from "./theme";
 import { Captions } from "./Captions";
-import { TitleCard, BulletReveal, ImageCaption, BigNumber, Quote, Outro } from "./scenes";
+import { AnimatedBackground, Grain, Vignette, Progress } from "./Background";
+import { TitleCard, BulletReveal, ImageCaption, BRoll, BigNumber, Quote, Whiteboard, Outro } from "./scenes";
 
-const SceneView: React.FC<{ scene: Scene; durationInFrames: number }> = ({ scene, durationInFrames }) => {
+const SceneInner: React.FC<{ scene: Scene; durationInFrames: number }> = ({ scene, durationInFrames }) => {
   const v = scene.visual;
-  let content: React.ReactNode;
   switch (v.template) {
-    case "bullet_reveal": content = <BulletReveal visual={v} />; break;
-    case "image_caption": content = <ImageCaption visual={v} durationInFrames={durationInFrames} />; break;
-    case "big_number": content = <BigNumber visual={v} />; break;
-    case "quote": content = <Quote visual={v} />; break;
-    case "outro": content = <Outro visual={v} />; break;
+    case "bullet_reveal": return <BulletReveal visual={v} />;
+    case "image_caption": return <ImageCaption visual={v} durationInFrames={durationInFrames} />;
+    case "b_roll": return <BRoll visual={v} />;
+    case "big_number": return <BigNumber visual={v} />;
+    case "quote": return <Quote visual={v} />;
+    case "whiteboard": return <Whiteboard visual={v} />;
+    case "outro": return <Outro visual={v} />;
     case "title_card":
-    default: content = <TitleCard visual={v} />;
+    default: return <TitleCard visual={v} />;
   }
-  return (<>{content}<Captions words={scene.words} /></>);
 };
 
-export const MainVideo: React.FC<{ project: Project }> = ({ project }) => (
-  <AbsoluteFill style={{ backgroundColor: theme.bg }}>
-    <Series>
-      {project.scenes.map((scene) => {
-        const d = Math.max(1, scene.durationFrames ?? 1);
-        return (
-          <Series.Sequence key={scene.id} durationInFrames={d}>
-            <SceneView scene={scene} durationInFrames={d} />
-            {scene.audioUrl && <Audio src={scene.audioUrl} />}
-          </Series.Sequence>
-        );
-      })}
-    </Series>
-  </AbsoluteFill>
-);
+const SceneView: React.FC<{ scene: Scene; durationInFrames: number }> = ({ scene, durationInFrames }) => {
+  const frame = useCurrentFrame();
+  const fadeIn = interpolate(frame, [0, 12], [0, 1], { extrapolateRight: "clamp" });
+  const fadeOut = interpolate(frame, [durationInFrames - 12, durationInFrames], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  return (
+    <AbsoluteFill style={{ opacity: Math.min(fadeIn, fadeOut) }}>
+      <SceneInner scene={scene} durationInFrames={durationInFrames} />
+      <Captions words={scene.words} />
+    </AbsoluteFill>
+  );
+};
 
 export const totalFrames = (project: Project) =>
   project.scenes.reduce((a, s) => a + Math.max(1, s.durationFrames ?? 1), 0);
+
+export const MainVideo: React.FC<{ project: Project }> = ({ project }) => {
+  const palette = themeFor(project.topic);
+  return (
+    <ThemeContext.Provider value={palette}>
+      <AbsoluteFill style={{ backgroundColor: palette.bg }}>
+        <AnimatedBackground />
+        <Series>
+          {project.scenes.map((scene) => {
+            const d = Math.max(1, scene.durationFrames ?? 1);
+            return (
+              <Series.Sequence key={scene.id} durationInFrames={d}>
+                <SceneView scene={scene} durationInFrames={d} />
+                {scene.audioUrl && <Audio src={scene.audioUrl} />}
+              </Series.Sequence>
+            );
+          })}
+        </Series>
+        {project.musicUrl && <Audio src={project.musicUrl} volume={0.11} loop />}
+        <Grain />
+        <Vignette />
+        <Progress total={totalFrames(project)} />
+      </AbsoluteFill>
+    </ThemeContext.Provider>
+  );
+};

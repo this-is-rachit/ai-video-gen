@@ -43,3 +43,6 @@ next-env.d.ts
 /data
 
 /public/audio
+/public/music
+/public/videos
+/public/cache

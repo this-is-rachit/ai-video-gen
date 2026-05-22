@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint"
   },
@@ -13,13 +13,17 @@
     "@ai-sdk/google": "^3.0.79",
     "@ai-sdk/openai": "^3.0.65",
     "@ai-sdk/xai": "^3.0.91",
+    "@remotion/bundler": "^4.0.465",
     "@remotion/google-fonts": "^4.0.465",
     "@remotion/player": "^4.0.465",
+    "@remotion/renderer": "^4.0.465",
     "ai": "^6.0.190",
+    "bufferutil": "^4.1.0",
     "next": "16.2.6",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "remotion": "^4.0.465",
+    "utf-8-validate": "^6.0.6",
     "ws": "^8.20.1",
     "zod": "^4.4.3"
   },

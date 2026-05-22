@@ -2,22 +2,29 @@
 import { z } from "zod";
 
 export const TEMPLATES = [
-  "title_card", "bullet_reveal", "image_caption", "big_number", "quote", "outro",
+  "title_card", "bullet_reveal", "image_caption", "b_roll",
+  "big_number", "quote", "whiteboard", "outro",
 ] as const;
 
-// Flat, optional fields — each template reads what it needs.
 export const VisualSchema = z.object({
   template: z.enum(TEMPLATES),
   title: z.string().optional(),
   subtitle: z.string().optional(),
   bullets: z.array(z.string()).optional(),
-  imageQuery: z.string().optional(),   // for image_caption / backgrounds
-  imageUrl: z.string().nullable().optional(),    // resolved Pexels URL (cache)
-  imageCredit: z.string().nullable().optional(),
-  value: z.string().optional(),        // for big_number, e.g. "13.8 billion years"
+  value: z.string().optional(),
   caption: z.string().optional(),
   quote: z.string().optional(),
   attribution: z.string().optional(),
+  // images (image_caption)
+  imageQuery: z.string().optional(),
+  imageUrl: z.string().nullable().optional(),
+  imageCredit: z.string().nullable().optional(),
+  bgImageQuery: z.string().optional(),
+  bgImageUrl: z.string().nullable().optional(),
+  // stock video b-roll (b_roll)
+  bRollQuery: z.string().optional(),
+  bRollUrl: z.string().nullable().optional(),
+  bRollCredit: z.string().nullable().optional(),
 });
 
 export const WordSchema = z.object({
@@ -54,6 +61,7 @@ export const ProjectSchema = z.object({
   status: z.enum(STATUSES).default("draft"),
   scenes: z.array(SceneSchema).default([]),
   videoUrl: z.string().nullable().default(null),
+  musicUrl: z.string().nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });

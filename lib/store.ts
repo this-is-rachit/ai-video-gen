@@ -62,6 +62,22 @@ export async function listProjects(): Promise<Project[]> {
 
 export async function deleteProject(id: string): Promise<void> {
   try { await fs.unlink(fileFor(id)); } catch {}
+  try { await fs.rm(path.join(process.cwd(), "public", "audio", id), { recursive: true, force: true }); } catch {}
+  try { await fs.rm(path.join(process.cwd(), "public", "cache", id), { recursive: true, force: true }); } catch {}
+  try { await fs.rm(path.join(process.cwd(), "public", "videos", `${id}.mp4`), { force: true }); } catch {}
+}
+
+export async function clearAllProjects(): Promise<number> {
+  await ensureDir();
+  const files = await fs.readdir(DATA_DIR);
+  let n = 0;
+  for (const f of files) {
+    if (f.endsWith(".json")) { await fs.unlink(path.join(DATA_DIR, f)).catch(() => {}); n++; }
+  }
+  for (const sub of ["audio", "cache", "videos"]) {
+    try { await fs.rm(path.join(process.cwd(), "public", sub), { recursive: true, force: true }); } catch {}
+  }
+  return n;
 }
 
 // Turn an LLM draft into a full Scene with an id + empty timing fields
