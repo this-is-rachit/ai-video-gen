@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Player } from "@remotion/player";
-import gsap from "gsap";
 import { MainVideo, totalFrames } from "@/remotion/Video";
 import Dock from "@/components/Dock";
 
@@ -42,7 +41,6 @@ export default function Studio() {
     setModel(localStorage.getItem("llm_model") || "");
     loadRecent();
     fetch("/api/warmup").catch(() => {});
-    gsap.from(card.current, { y: 40, opacity: 0, duration: 0.8, ease: "power3.out" });
     return () => { clearInterval(pollTimer.current); clearInterval(stepTimer.current); };
   }, []);
   useEffect(() => { localStorage.setItem("llm_provider", provider); }, [provider]);
@@ -104,8 +102,13 @@ export default function Studio() {
 
   return (
     <div style={{ minHeight: "100vh", position: "relative", overflow: "hidden" }}>
-      <div style={{ position: "fixed", inset: 0, zIndex: 0 }}><InteractiveField density={0.5} dotSize={0.07} opacity={0.4} radius={1.3} /></div>
-      <div style={{ position: "fixed", inset: 0, zIndex: 0, background: "radial-gradient(ellipse 60% 50% at 50% 30%, rgba(245,239,227,0.2), rgba(245,239,227,0.8))", pointerEvents: "none" }} />
+        <style>{`
+          .studio-card { animation: cardIn .6s ease both; }
+          @keyframes cardIn { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+          .field-fade { animation: fieldIn .8s ease both; }
+          @keyframes fieldIn { from { opacity: 0; } to { opacity: 1; } }
+        `}</style>
+      <div className="field-fade" style={{ position: "fixed", inset: 0, zIndex: 0 }}><InteractiveField density={0.5} dotSize={0.07} opacity={0.4} radius={1.3} /></div>      <div style={{ position: "fixed", inset: 0, zIndex: 0, background: "radial-gradient(ellipse 60% 50% at 50% 30%, rgba(245,239,227,0.2), rgba(245,239,227,0.8))", pointerEvents: "none" }} />
       <Dock links={[{ label: "How it works", href: "/#how" }]} cta={{ label: "← Home", href: "/" }} />
 
       <div style={{ position: "relative", zIndex: 2, maxWidth: 720, margin: "0 auto", padding: "170px 24px 80px" }}>
@@ -113,7 +116,7 @@ export default function Studio() {
         <h1 style={ST.h1}>Create a video</h1>
         <p style={ST.sub}>Type a topic. Get a finished, voiced, captioned video — in one click.</p>
 
-        <div ref={card} style={ST.card}>
+        <div ref={card} style={ST.card} className="studio-card">
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <Field label="LLM provider (BYOK)"><select value={provider} onChange={(e) => setProvider(e.target.value)} style={ST.inp}>{PROVIDERS.map(([id, l]) => <option key={id} value={id}>{l}</option>)}</select></Field>
             <Field label="Model (optional)"><input value={model} onChange={(e) => setModel(e.target.value)} placeholder="default" style={ST.inp} /></Field>
