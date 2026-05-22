@@ -11,13 +11,13 @@ function extFromUrl(u: string, fallback: string): string {
   return m ? m[0].toLowerCase() : fallback;
 }
 
-async function downloadOne(url: string, destDir: string): Promise<string | null> {
+async function downloadOne(url: string, destDir: string, kind: "img" | "vid" | "aud"): Promise<string | null> {
   try {
     const hash = crypto.createHash("md5").update(url).digest("hex").slice(0, 16);
-    const looksVideo = /\/video|\.mp4|\.mov|\.webm/i.test(url);
-    const file = `${hash}${extFromUrl(url, looksVideo ? ".mp4" : ".jpg")}`;
+    const fb = kind === "vid" ? ".mp4" : kind === "aud" ? ".mp3" : ".jpg";
+    const file = `${hash}${extFromUrl(url, fb)}`;
     const dest = path.join(destDir, file);
-    try { await fs.access(dest); return file; } catch {}        // cache hit
+    try { await fs.access(dest); return file; } catch {}
     const res = await fetch(url);
     if (!res.ok) return null;
     await fs.writeFile(dest, Buffer.from(await res.arrayBuffer()));
@@ -25,7 +25,7 @@ async function downloadOne(url: string, destDir: string): Promise<string | null>
   } catch { return null; }
 }
 
-/** Download remote image/video assets to /public/cache/<id> and return a clone with local URLs. */
+/** Download remote image/video/music to /public/cache/<id> and return a clone with local URLs. */
 export async function localizeAssets(project: Project): Promise<Project> {
   const dir = path.join(CACHE_DIR, project.id);
   await fs.mkdir(dir, { recursive: true });
@@ -34,13 +34,10 @@ export async function localizeAssets(project: Project): Promise<Project> {
   const localUrl = (file: string) => `/cache/${p.id}/${file}`;
 
   for (const s of p.scenes) {
-    for (const key of ["imageUrl", "bgImageUrl", "bRollUrl"] as const) {
-      const u = (s.visual as any)[key] as string | null | undefined;
-      if (isRemote(u)) {
-        const f = await downloadOne(u!, dir);
-        if (f) (s.visual as any)[key] = localUrl(f);
-      }
-    }
+    if (isRemote(s.visual.imageUrl)) { const f = await downloadOne(s.visual.imageUrl!, dir, "img"); if (f) s.visual.imageUrl = localUrl(f); }
+    if (isRemote(s.visual.bgImageUrl)) { const f = await downloadOne(s.visual.bgImageUrl!, dir, "img"); if (f) s.visual.bgImageUrl = localUrl(f); }
+    if (isRemote(s.visual.bRollUrl)) { const f = await downloadOne(s.visual.bRollUrl!, dir, "vid"); if (f) s.visual.bRollUrl = localUrl(f); }
   }
-  return p; // audio + music are already local
+  if (isRemote(p.musicUrl)) { const f = await downloadOne(p.musicUrl!, dir, "aud"); if (f) p.musicUrl = localUrl(f); }
+  return p;
 }

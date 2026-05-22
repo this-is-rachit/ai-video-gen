@@ -62,6 +62,8 @@ export const ProjectSchema = z.object({
   scenes: z.array(SceneSchema).default([]),
   videoUrl: z.string().nullable().default(null),
   musicUrl: z.string().nullable().optional(),
+  musicCredit: z.string().nullable().optional(),
+  aspect: z.enum(["portrait", "landscape"]).default("portrait"),
   createdAt: z.string(),
   updatedAt: z.string(),
 });

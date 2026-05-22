@@ -25,13 +25,15 @@ export async function POST(req: Request) {
   let project: any = null;
   const warnings: string[] = [];
   try {
-    const { topic, language, voiceId, style, provider, apiKey, model } = await req.json();
+    const { topic, language, voiceId, style, provider, apiKey, model, aspect } = await req.json();
     if (!topic?.trim()) return NextResponse.json({ service: "input", error: "Please enter a topic." }, { status: 400 });
     if (!apiKey) return NextResponse.json({ service: "byok", error: "Add your LLM API key in settings." }, { status: 400 });
     const lang = language || "en-US";
 
     // 1) PROJECT
     project = await createProject({ topic, language: lang, voiceId, style });
+    project.aspect = aspect === "landscape" ? "landscape" : "portrait";
+    await saveProject(project);
     console.log(`\n[studio] ${project.id} ▶ "${topic}" (${lang}) via ${provider}`);
 
     // 2) SCRIPT — fatal if it fails
@@ -112,9 +114,11 @@ export async function POST(req: Request) {
     if (noMedia) warnings.push(`${noMedia} scene(s) had no stock media (Pexels limit or no match).`);
     console.log(`[studio] ${project.id} ✓ media`);
 
-    // 6) MUSIC — optional bed from /public/music
-    project.musicUrl = await pickMusic(project.id + topic);
-    if (!project.musicUrl) warnings.push("No music found in /public/music (add royalty-free tracks for a soundtrack).");
+   // 6) MUSIC — dynamic (Jamendo by mood) with local fallback
+    const m = await pickMusic(project.id + topic);
+    project.musicUrl = m?.url ?? null;
+    project.musicCredit = m?.credit ?? null;
+    if (!m) warnings.push("No music (add JAMENDO_CLIENT_ID to .env.local or drop mp3s in /public/music).");
 
     project.status = "done";
     const saved = await saveProject(project);
