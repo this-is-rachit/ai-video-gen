@@ -46,7 +46,8 @@ export async function POST(req: Request) {
     } catch (e: any) {
       throw new StepError("byok", `LLM (${provider}) failed: ${e?.message || e}`);
     }
-    project.scenes = drafts.map(newScene);
+    project.scenes = drafts.scenes.map(newScene);
+    project.stylePack = drafts.stylePack ?? null;
     await saveProject(project);
     console.log(`[studio] ${project.id} ✓ script (${project.scenes.length} scenes)`);
 

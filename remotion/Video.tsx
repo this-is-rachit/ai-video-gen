@@ -2,10 +2,11 @@
 import React from "react";
 import { AbsoluteFill, Audio, interpolate, Series, useCurrentFrame } from "remotion";
 import { Project, Scene } from "@/lib/schema";
-import { ThemeContext, themeFor } from "./theme";
+import { ThemeContext, themeFor, StyleContext, packFor } from "./theme";
 import { Captions } from "./Captions";
 import { AnimatedBackground, Grain, Vignette, Progress } from "./Background";
 import { TitleCard, BulletReveal, ImageCaption, BRoll, BigNumber, Quote, Whiteboard, Outro } from "./scenes";
+
 
 // ---- music mix (ducking) ----
 const MUSIC_BASE = 0.12;   // quiet bed under narration
@@ -75,10 +76,12 @@ const Music: React.FC<{ src: string; total: number; firstVoice: number; lastVoic
 
 export const MainVideo: React.FC<{ project: Project }> = ({ project }) => {
   const palette = themeFor(project.topic);
+  const pack = packFor(project.topic, (project as any).stylePack);
   const total = totalFrames(project);
   const { firstVoice, lastVoice } = voiceWindow(project, total);
   return (
     <ThemeContext.Provider value={palette}>
+      <StyleContext.Provider value={pack}>
       <AbsoluteFill style={{ backgroundColor: palette.bg }}>
         <AnimatedBackground />
         <Series>
@@ -97,6 +100,7 @@ export const MainVideo: React.FC<{ project: Project }> = ({ project }) => {
         <Vignette />
         <Progress total={total} />
       </AbsoluteFill>
+    </StyleContext.Provider>
     </ThemeContext.Provider>
   );
 };

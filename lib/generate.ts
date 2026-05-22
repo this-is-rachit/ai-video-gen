@@ -59,7 +59,7 @@ function normalizeScene(raw: any): SceneDraft | null {
 }
 
 /** Step 2: ask for JSON text, parse + repair + validate ourselves (provider-agnostic). */
-export async function writeScript(input: GenInput, facts: string): Promise<SceneDraft[]> {
+export async function writeScript(input: GenInput, facts: string): Promise<{ scenes: SceneDraft[]; stylePack: string | null }> {
   const prompt =
 `Write a punchy, accurate 2-minute narrated explainer video script about "${input.topic}".
 
@@ -67,7 +67,9 @@ Use ONLY these researched facts:
 ${facts}
 
 Return ONLY a JSON object (no markdown, no commentary) of this exact shape:
-{"scenes":[{"narration":"...","visual":{"template":"...", ...fields}}]}
+{"stylePack":"...","scenes":[{"narration":"...","visual":{"template":"...", ...fields}}]}
+- "stylePack" = the visual style best fitting this topic, ONE of: editorial, boldpop, cinematic, tech, retro, minimal.
+  (editorial=serious/finance/science, boldpop=fun listicles, cinematic=history/space/nature, tech=technology, retro=culture/music/games, minimal=clean default)
 
 RULES:
 - Narration in locale "${input.language}". 10-14 scenes. Each narration = ONE or TWO short spoken sentences. TOTAL ~280-340 words.
@@ -83,25 +85,26 @@ Example scene: {"narration":"Black holes warp space itself.","visual":{"template
 
 Output the JSON now.`;
 
-  const attempt = async (): Promise<SceneDraft[]> => {
+  const PACK_IDS = ["editorial", "boldpop", "cinematic", "tech", "retro", "minimal"];
+  const attempt = async (): Promise<{ scenes: SceneDraft[]; stylePack: string | null }> => {
     const { text } = await generateText({
       model: getModel(input.provider, input.apiKey, input.model),
       prompt,
       temperature: 0.7,
     });
     let obj: any;
-    try { obj = extractJson(text); } catch { return []; }
+    try { obj = extractJson(text); } catch { return { scenes: [], stylePack: null }; }
     const arr = Array.isArray(obj?.scenes) ? obj.scenes : Array.isArray(obj) ? obj : [];
-    return arr.map(normalizeScene).filter(Boolean) as SceneDraft[];
+    const scenes = arr.map(normalizeScene).filter(Boolean) as SceneDraft[];
+    const stylePack = typeof obj?.stylePack === "string" && PACK_IDS.includes(obj.stylePack) ? obj.stylePack : null;
+    return { scenes, stylePack };
   };
-
-  let scenes = await attempt();
-  if (scenes.length < 4) scenes = await attempt(); // one retry
-
-  if (scenes.length < 4) {
+  let result = await attempt();
+  if (result.scenes.length < 4) result = await attempt(); // one retry
+  if (result.scenes.length < 4) {
     throw new Error(
       "The model didn't return a usable script. Try a more capable model in the Model box (e.g. a current Gemini Pro), then regenerate."
     );
   }
-  return scenes;
+  return result;
 }
