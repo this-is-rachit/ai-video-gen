@@ -2,7 +2,7 @@
 import React from "react";
 import { AbsoluteFill, Img, OffthreadVideo, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { Visual } from "@/lib/schema";
-import { useTheme, withAlpha, display, sans, hand } from "./theme";
+import { useTheme, useStyle, withAlpha, display, sans, hand, springFor } from "./theme";
 import { fitTitle, fitBody, fitQuote } from "./text";
 import { useLayout } from "./layout";
 import { Mascot } from "./Character";
@@ -12,7 +12,8 @@ const TEXT_SHADOW = "0 2px 18px rgba(0,0,0,0.55)";
 const useEnter = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  return spring({ frame, fps, config: { damping: 200 } });
+  const s = useStyle();
+  return spring({ frame, fps, config: springFor(s.motion) });
 };
 
 const SceneBg: React.FC<{ url?: string | null }> = ({ url }) => {
@@ -21,7 +22,6 @@ const SceneBg: React.FC<{ url?: string | null }> = ({ url }) => {
   return (
     <AbsoluteFill>
       <Img src={url} style={{ width: "100%", height: "100%", objectFit: "cover", filter: "blur(6px) brightness(0.55)", transform: "scale(1.12)" }} />
-      {/* lighter at top, darker at bottom + radial vignette → image visible, text readable */}
       <AbsoluteFill style={{ background: `linear-gradient(to bottom, ${withAlpha(c.bg, 0.55)}, ${withAlpha(c.bg, 0.82)})` }} />
       <AbsoluteFill style={{ background: `radial-gradient(ellipse 80% 70% at 50% 45%, transparent 0%, ${withAlpha(c.bg, 0.5)} 100%)` }} />
     </AbsoluteFill>
@@ -201,6 +201,66 @@ export const Outro: React.FC<{ visual: Visual }> = ({ visual }) => {
         <h2 style={{ fontFamily: display, fontSize: fitTitle(visual.title) * 0.85 * fontScale, color: c.text, margin: 0, textShadow: TEXT_SHADOW }}>{visual.title ?? "Thanks for watching"}</h2>
         {visual.subtitle && <p style={{ fontFamily: sans, fontSize: fitBody(visual.subtitle) * fontScale, color: c.muted, marginTop: 22, textShadow: TEXT_SHADOW }}>{visual.subtitle}</p>}
         <div style={{ width: 90, height: 6, background: c.accent, borderRadius: 99, marginTop: 36 }} />
+      </div>
+    </AbsoluteFill>
+  );
+};
+
+// ---- NEW: montage burst (3-5 images, beat-timed) ----
+export const Montage: React.FC<{ visual: Visual; durationInFrames: number }> = ({ visual, durationInFrames }) => {
+  const frame = useCurrentFrame(); const { fps } = useVideoConfig(); const c = useTheme(); const { fontScale } = useLayout();
+  const urls = ((visual as any).imageUrls ?? []).slice(0, 5) as string[];
+  if (!urls.length) return <SceneBg url={visual.bgImageUrl} />;
+  const per = durationInFrames / urls.length;
+  const idx = Math.min(urls.length - 1, Math.floor(frame / per));
+  const local = frame - idx * per;
+  const inAnim = spring({ frame: local, fps, config: { damping: 40, stiffness: 160 } });
+  const zoom = interpolate(local, [0, per], [1.06, 1.16], { extrapolateRight: "clamp" });
+  return (
+    <AbsoluteFill style={{ background: c.bg }}>
+      <AbsoluteFill style={{ opacity: inAnim }}>
+        <Img src={urls[idx]} style={{ width: "100%", height: "100%", objectFit: "cover", transform: `scale(${zoom})` }} />
+        <AbsoluteFill style={{ background: "linear-gradient(to bottom, rgba(0,0,0,.5) 0%, rgba(0,0,0,.05) 35%, rgba(0,0,0,.7) 100%)" }} />
+      </AbsoluteFill>
+      <div style={{ position: "absolute", bottom: "16%", left: 0, right: 0, display: "flex", justifyContent: "center", gap: 12 }}>
+        {urls.map((_, i) => (
+          <div key={i} style={{ width: i === idx ? 34 : 14, height: 6, borderRadius: 99, background: i === idx ? c.accent : withAlpha(c.text, 0.4) }} />
+        ))}
+      </div>
+      {visual.caption && (
+        <div style={{ position: "absolute", top: "11%", left: "7%", right: "7%" }}>
+          <TextPlate style={{ display: "inline-block", padding: "14px 22px" }}>
+            <span style={{ fontFamily: sans, fontSize: 40 * fontScale, color: c.accent2, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", textShadow: TEXT_SHADOW }}>{visual.caption}</span>
+          </TextPlate>
+        </div>
+      )}
+    </AbsoluteFill>
+  );
+};
+
+// ---- NEW: split-screen comparison (X vs Y) ----
+export const Comparison: React.FC<{ visual: Visual }> = ({ visual }) => {
+  const frame = useCurrentFrame(); const { fps } = useVideoConfig(); const c = useTheme(); const { fontScale, landscape } = useLayout();
+  const v: any = visual;
+  const sL = spring({ frame, fps, config: { damping: 60, stiffness: 120 } });
+  const sR = spring({ frame: frame - 6, fps, config: { damping: 60, stiffness: 120 } });
+  const Half: React.FC<{ url?: string | null; label?: string; anim: number; from: number; tint: string }> = ({ url, label, anim, from, tint }) => (
+    <div style={{ flex: 1, position: "relative", overflow: "hidden", transform: landscape ? `translateX(${interpolate(anim, [0, 1], [from, 0])}px)` : `translateY(${interpolate(anim, [0, 1], [from, 0])}px)`, opacity: anim }}>
+      {url ? <Img src={url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <AbsoluteFill style={{ background: tint }} />}
+      <AbsoluteFill style={{ background: "linear-gradient(to bottom, rgba(0,0,0,.2), rgba(0,0,0,.75))" }} />
+      {label && (
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: "8%", textAlign: "center" }}>
+          <span style={{ fontFamily: display, fontSize: 64 * fontScale, fontWeight: 700, color: "#fff", textShadow: TEXT_SHADOW }}>{label}</span>
+        </div>
+      )}
+    </div>
+  );
+  return (
+    <AbsoluteFill style={{ background: c.bg, display: "flex", flexDirection: landscape ? "row" : "column" }}>
+      <Half url={v.leftImageUrl} label={v.leftLabel} anim={sL} from={-120} tint={withAlpha(c.accent, 0.5)} />
+      <Half url={v.rightImageUrl} label={v.rightLabel} anim={sR} from={120} tint={withAlpha(c.accent2, 0.5)} />
+      <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 86, height: 86, borderRadius: 99, background: c.bg, border: `3px solid ${c.accent}`, display: "flex", alignItems: "center", justifyContent: "center", opacity: spring({ frame: frame - 12, fps, config: { damping: 12 } }) }}>
+        <span style={{ fontFamily: display, fontWeight: 800, fontSize: 34, color: c.text }}>VS</span>
       </div>
     </AbsoluteFill>
   );

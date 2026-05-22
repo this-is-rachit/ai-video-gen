@@ -1,12 +1,12 @@
 // remotion/Video.tsx
 import React from "react";
+import { SfxTrack } from "./Sfx";
 import { AbsoluteFill, Audio, interpolate, Series, useCurrentFrame } from "remotion";
 import { Project, Scene } from "@/lib/schema";
 import { ThemeContext, themeFor, StyleContext, packFor } from "./theme";
 import { Captions } from "./Captions";
 import { AnimatedBackground, Grain, Vignette, Progress } from "./Background";
-import { TitleCard, BulletReveal, ImageCaption, BRoll, BigNumber, Quote, Whiteboard, Outro } from "./scenes";
-
+import { TitleCard, BulletReveal, ImageCaption, BRoll, BigNumber, Quote, Whiteboard, Outro, Montage, Comparison } from "./scenes";
 
 // ---- music mix (ducking) ----
 const MUSIC_BASE = 0.12;   // quiet bed under narration
@@ -23,6 +23,8 @@ const SceneInner: React.FC<{ scene: Scene; durationInFrames: number }> = ({ scen
     case "quote": return <Quote visual={v} />;
     case "whiteboard": return <Whiteboard visual={v} />;
     case "outro": return <Outro visual={v} />;
+    case "montage": return <Montage visual={v} durationInFrames={durationInFrames} />;
+    case "comparison": return <Comparison visual={v} />;
     case "title_card":
     default: return <TitleCard visual={v} />;
   }
@@ -96,6 +98,7 @@ export const MainVideo: React.FC<{ project: Project }> = ({ project }) => {
           })}
         </Series>
         {project.musicUrl && <Music src={project.musicUrl} total={total} firstVoice={firstVoice} lastVoice={lastVoice} />}
+        <SfxTrack scenes={project.scenes} />
         <Grain />
         <Vignette />
         <Progress total={total} />

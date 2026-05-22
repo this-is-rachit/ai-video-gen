@@ -53,6 +53,12 @@ function normalizeScene(raw: any): SceneDraft | null {
   if (Array.isArray(v.bullets)) {
     visual.bullets = v.bullets.filter((b: any) => typeof b === "string" && b.trim()).map((b: string) => b.trim());
   }
+  if (Array.isArray(v.images)) {
+    visual.images = v.images.filter((b: any) => typeof b === "string" && b.trim()).map((b: string) => b.trim()).slice(0, 5);
+  }
+  for (const k of ["leftLabel", "rightLabel", "leftImageQuery", "rightImageQuery"]) {
+    if (typeof v[k] === "string" && v[k].trim()) visual[k] = v[k].trim();
+  }
 
   const parsed = SceneDraftSchema.safeParse({ narration, visual });
   return parsed.success ? parsed.data : null;
@@ -78,6 +84,8 @@ RULES:
 - Scene 1 = title_card. Last scene = outro.
 - image_caption: set "imageQuery" = 2-4 vivid ENGLISH keywords (unique subject per scene).
 - b_roll: set "bRollQuery" = 2-4 ENGLISH keywords for MOVING footage. Use 2-3 b_roll scenes.
+- montage (use 0-1 times, for "examples/variety" beats): set "images" = array of 3-5 short ENGLISH image queries, each a different subject.
+- comparison (use ONLY when the scene contrasts two things, 0-1 times): set "leftLabel","rightLabel" (<=3 words each) and "leftImageQuery","rightImageQuery" (2-3 ENGLISH keywords each).
 - EVERY scene that is NOT image_caption, b_roll, or whiteboard MUST also set "bgImageQuery" = 2-4 unique ENGLISH keywords matching that scene.
 - whiteboard: "title" + "bullets" (2-4). big_number: "value" + "caption". quote: "quote" + "attribution". bullet_reveal: "title" + "bullets".
 

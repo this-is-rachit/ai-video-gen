@@ -34,10 +34,26 @@ export async function localizeAssets(project: Project): Promise<Project> {
   const localUrl = (file: string) => `/cache/${p.id}/${file}`;
 
   for (const s of p.scenes) {
-    if (isRemote(s.visual.imageUrl)) { const f = await downloadOne(s.visual.imageUrl!, dir, "img"); if (f) s.visual.imageUrl = localUrl(f); }
-    if (isRemote(s.visual.bgImageUrl)) { const f = await downloadOne(s.visual.bgImageUrl!, dir, "img"); if (f) s.visual.bgImageUrl = localUrl(f); }
-    if (isRemote(s.visual.bRollUrl)) { const f = await downloadOne(s.visual.bRollUrl!, dir, "vid"); if (f) s.visual.bRollUrl = localUrl(f); }
+    const v: any = s.visual;
+    if (isRemote(v.imageUrl)) { const f = await downloadOne(v.imageUrl!, dir, "img"); if (f) v.imageUrl = localUrl(f); }
+    if (isRemote(v.bgImageUrl)) { const f = await downloadOne(v.bgImageUrl!, dir, "img"); if (f) v.bgImageUrl = localUrl(f); }
+    if (isRemote(v.bRollUrl)) { const f = await downloadOne(v.bRollUrl!, dir, "vid"); if (f) v.bRollUrl = localUrl(f); }
+
+    // montage: array of image URLs
+    if (Array.isArray(v.imageUrls)) {
+      const out: string[] = [];
+      for (const u of v.imageUrls) {
+        if (isRemote(u)) { const f = await downloadOne(u, dir, "img"); out.push(f ? localUrl(f) : u); }
+        else out.push(u);
+      }
+      v.imageUrls = out;
+    }
+
+    // comparison: left / right images
+    if (isRemote(v.leftImageUrl)) { const f = await downloadOne(v.leftImageUrl!, dir, "img"); if (f) v.leftImageUrl = localUrl(f); }
+    if (isRemote(v.rightImageUrl)) { const f = await downloadOne(v.rightImageUrl!, dir, "img"); if (f) v.rightImageUrl = localUrl(f); }
   }
+
   if (isRemote(p.musicUrl)) { const f = await downloadOne(p.musicUrl!, dir, "aud"); if (f) p.musicUrl = localUrl(f); }
   return p;
 }

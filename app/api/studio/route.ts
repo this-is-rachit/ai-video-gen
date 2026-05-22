@@ -86,24 +86,45 @@ export async function POST(req: Request) {
     if (dgFallback) warnings.push(`${dgFallback} scene(s) used estimated caption timing (Deepgram unavailable/limit).`);
     console.log(`[studio] ${project.id} ✓ captions`);
 
-   // 5) MEDIA — non-fatal (Pexels images + b-roll video + matching backgrounds)
+   // 5) MEDIA — aspect-aware (Pexels images + b-roll video + matching backgrounds)
+    const ori: "portrait" | "landscape" = project.aspect === "landscape" ? "landscape" : "portrait";
     const usedImg = new Set<string>(), usedVid = new Set<string>();
     let noMedia = 0;
     for (const scene of project.scenes) {
       const v = scene.visual;
       try {
         if (v.template === "b_roll") {
-          const vids = await searchPexelsVideos(v.bRollQuery || v.imageQuery || v.title || topic);
+          const vids = await searchPexelsVideos(v.bRollQuery || v.imageQuery || v.title || topic, 12, ori);
           const pick = vids.find((x) => !usedVid.has(x.id)) ?? vids[0];
           if (pick) { v.bRollUrl = pick.url; v.bRollCredit = pick.credit; usedVid.add(pick.id); } else noMedia++;
         } else if (v.template === "image_caption" && v.imageQuery) {
-          const imgs = await searchPexelsImages(v.imageQuery);
+          const imgs = await searchPexelsImages(v.imageQuery, 15, ori);
           const pick = imgs.find((x) => !usedImg.has(x.id)) ?? imgs[0];
           if (pick) { v.imageUrl = pick.url; v.imageCredit = pick.credit; usedImg.add(pick.id); } else noMedia++;
+        } else if (v.template === "montage" && Array.isArray(v.images) && v.images.length) {
+          const urls: string[] = [];
+          for (const q of v.images.slice(0, 5)) {
+            const imgs = await searchPexelsImages(q, 8, ori);
+            const pick = imgs.find((x) => !usedImg.has(x.id)) ?? imgs[0];
+            if (pick) { urls.push(pick.url); usedImg.add(pick.id); }
+          }
+          if (urls.length >= 2) v.imageUrls = urls; else noMedia++;
+        } else if (v.template === "comparison") {
+          // comparison halves are tall slivers → fetch portrait crops regardless of overall aspect
+          const grab = async (q?: string) => {
+            if (!q) return null;
+            const imgs = await searchPexelsImages(q, 8, "portrait");
+            const pick = imgs.find((x) => !usedImg.has(x.id)) ?? imgs[0];
+            if (pick) { usedImg.add(pick.id); return pick.url; }
+            return null;
+          };
+          v.leftImageUrl = await grab(v.leftImageQuery);
+          v.rightImageUrl = await grab(v.rightImageQuery);
+          if (!v.leftImageUrl && !v.rightImageUrl) noMedia++;
         }
         // matching dim background for text scenes (whiteboard stays paper)
         if (v.bgImageQuery && v.template !== "whiteboard" && !v.imageUrl && !v.bRollUrl) {
-          const imgs = await searchPexelsImages(v.bgImageQuery);
+          const imgs = await searchPexelsImages(v.bgImageQuery, 15, ori);
           const pick = imgs.find((x) => !usedImg.has(x.id)) ?? imgs[0];
           if (pick) { v.bgImageUrl = pick.url; usedImg.add(pick.id); }
         }
@@ -113,7 +134,7 @@ export async function POST(req: Request) {
       }
     }
     if (noMedia) warnings.push(`${noMedia} scene(s) had no stock media (Pexels limit or no match).`);
-    console.log(`[studio] ${project.id} ✓ media`);
+    console.log(`[studio] ${project.id} ✓ media (${ori})`);
 
    // 6) MUSIC — topic-matched (Jamendo by mood) with local fallback
     const scriptText = project.scenes

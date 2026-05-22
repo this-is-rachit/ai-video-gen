@@ -4,6 +4,7 @@ import { z } from "zod";
 export const TEMPLATES = [
   "title_card", "bullet_reveal", "image_caption", "b_roll",
   "big_number", "quote", "whiteboard", "outro",
+  "montage", "comparison",
 ] as const;
 
 export const VisualSchema = z.object({
@@ -25,6 +26,16 @@ export const VisualSchema = z.object({
   bRollQuery: z.string().optional(),
   bRollUrl: z.string().nullable().optional(),
   bRollCredit: z.string().nullable().optional(),
+  // montage (3-5 images in a rhythmic burst)
+  images: z.array(z.string()).optional(),       // queries
+  imageUrls: z.array(z.string()).optional(),    // filled by media step
+  // comparison (split-screen X vs Y)
+  leftLabel: z.string().optional(),
+  rightLabel: z.string().optional(),
+  leftImageQuery: z.string().optional(),
+  rightImageQuery: z.string().optional(),
+  leftImageUrl: z.string().nullable().optional(),
+  rightImageUrl: z.string().nullable().optional(),
 });
 
 export const WordSchema = z.object({
