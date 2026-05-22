@@ -7,6 +7,8 @@ import { fitTitle, fitBody, fitQuote } from "./text";
 import { useLayout } from "./layout";
 import { Mascot } from "./Character";
 
+const TEXT_SHADOW = "0 2px 18px rgba(0,0,0,0.55)";
+
 const useEnter = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -18,9 +20,21 @@ const SceneBg: React.FC<{ url?: string | null }> = ({ url }) => {
   if (!url) return null;
   return (
     <AbsoluteFill>
-      <Img src={url} style={{ width: "100%", height: "100%", objectFit: "cover", filter: "blur(7px) brightness(0.42)", transform: "scale(1.12)" }} />
-      <AbsoluteFill style={{ background: `linear-gradient(to bottom, ${withAlpha(c.bg, 0.78)}, ${withAlpha(c.bg, 0.92)})` }} />
+      <Img src={url} style={{ width: "100%", height: "100%", objectFit: "cover", filter: "blur(6px) brightness(0.55)", transform: "scale(1.12)" }} />
+      {/* lighter at top, darker at bottom + radial vignette → image visible, text readable */}
+      <AbsoluteFill style={{ background: `linear-gradient(to bottom, ${withAlpha(c.bg, 0.55)}, ${withAlpha(c.bg, 0.82)})` }} />
+      <AbsoluteFill style={{ background: `radial-gradient(ellipse 80% 70% at 50% 45%, transparent 0%, ${withAlpha(c.bg, 0.5)} 100%)` }} />
     </AbsoluteFill>
+  );
+};
+
+/** Soft legibility panel behind copy on photo/video scenes. */
+const TextPlate: React.FC<{ children: React.ReactNode; style?: React.CSSProperties }> = ({ children, style }) => {
+  const c = useTheme();
+  return (
+    <div style={{ background: withAlpha(c.bg, 0.42), backdropFilter: "blur(8px)", borderRadius: 22, padding: "22px 28px", border: `1px solid ${withAlpha(c.text, 0.08)}`, ...style }}>
+      {children}
+    </div>
   );
 };
 
@@ -33,7 +47,7 @@ const Kinetic: React.FC<{ text: string; size: number; color: string }> = ({ text
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   return (
-    <h1 style={{ fontFamily: display, fontSize: size, lineHeight: 1.05, color, margin: 0, fontWeight: 600 }}>
+    <h1 style={{ fontFamily: display, fontSize: size, lineHeight: 1.05, color, margin: 0, fontWeight: 600, textShadow: TEXT_SHADOW }}>
       {text.split(" ").map((w, i) => {
         const s = spring({ frame: frame - i * 4, fps, config: { damping: 200 } });
         return <span key={i} style={{ display: "inline-block", marginRight: "0.25em", opacity: s, transform: `translateY(${interpolate(s, [0, 1], [26, 0])}px)` }}>{w}</span>;
@@ -50,7 +64,7 @@ export const TitleCard: React.FC<{ visual: Visual }> = ({ visual }) => {
       <div style={{ ...box, alignItems: "center", textAlign: "center" }}>
         {!landscape && <div style={{ opacity: e, marginBottom: 18 }}><Mascot /></div>}
         <Kinetic text={visual.title ?? ""} size={fitTitle(visual.title) * fontScale} color={c.text} />
-        {visual.subtitle && <p style={{ fontFamily: sans, fontSize: fitBody(visual.subtitle) * fontScale, color: c.muted, marginTop: 26, opacity: e }}>{visual.subtitle}</p>}
+        {visual.subtitle && <p style={{ fontFamily: sans, fontSize: fitBody(visual.subtitle) * fontScale, color: c.muted, marginTop: 26, opacity: e, textShadow: TEXT_SHADOW }}>{visual.subtitle}</p>}
       </div>
     </AbsoluteFill>
   );
@@ -62,13 +76,13 @@ export const BulletReveal: React.FC<{ visual: Visual }> = ({ visual }) => {
     <AbsoluteFill>
       <SceneBg url={visual.bgImageUrl} />
       <div style={box}>
-        {visual.title && <h2 style={{ fontFamily: display, fontSize: fitTitle(visual.title) * 0.7 * fontScale, color: c.text, marginBottom: 44 }}>{visual.title}</h2>}
+        {visual.title && <h2 style={{ fontFamily: display, fontSize: fitTitle(visual.title) * 0.7 * fontScale, color: c.text, marginBottom: 44, textShadow: TEXT_SHADOW }}>{visual.title}</h2>}
         {(visual.bullets ?? []).map((b, i) => {
           const s = spring({ frame: frame - i * 9, fps, config: { damping: 200 } });
           return (
             <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 22, marginBottom: 30, opacity: s, transform: `translateX(${interpolate(s, [0, 1], [-50, 0])}px)` }}>
               <div style={{ width: 18, height: 18, borderRadius: 99, background: c.accent, marginTop: 12, flexShrink: 0, boxShadow: `0 0 24px ${c.accent}` }} />
-              <span style={{ fontFamily: sans, fontSize: (fitBody(b) + 4) * fontScale, color: c.text, lineHeight: 1.25 }}>{b}</span>
+              <span style={{ fontFamily: sans, fontSize: (fitBody(b) + 4) * fontScale, color: c.text, lineHeight: 1.25, textShadow: TEXT_SHADOW }}>{b}</span>
             </div>
           );
         })}
@@ -86,12 +100,14 @@ export const ImageCaption: React.FC<{ visual: Visual; durationInFrames: number }
       {visual.imageUrl ? (
         <>
           <Img src={visual.imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover", transform: `scale(${scale}) translateY(${drift}px)` }} />
-          <AbsoluteFill style={{ background: "linear-gradient(to bottom, rgba(0,0,0,.3) 0%, rgba(0,0,0,0) 36%, rgba(0,0,0,.9) 100%)" }} />
+          <AbsoluteFill style={{ background: "linear-gradient(to bottom, rgba(0,0,0,.55) 0%, rgba(0,0,0,.12) 30%, rgba(0,0,0,.15) 62%, rgba(0,0,0,.85) 100%)" }} />
         </>
       ) : <SceneBg url={visual.bgImageUrl} />}
       {visual.caption && (
-        <div style={{ position: "absolute", top: "12%", left: "7%", right: "7%" }}>
-          <span style={{ fontFamily: sans, fontSize: 40 * fontScale, color: c.accent2, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" }}>{visual.caption}</span>
+        <div style={{ position: "absolute", top: "11%", left: "7%", right: "7%" }}>
+          <TextPlate style={{ display: "inline-block", padding: "14px 22px" }}>
+            <span style={{ fontFamily: sans, fontSize: 40 * fontScale, color: c.accent2, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", textShadow: TEXT_SHADOW }}>{visual.caption}</span>
+          </TextPlate>
         </div>
       )}
       {visual.imageCredit && <Credit text={visual.imageCredit} />}
@@ -106,12 +122,14 @@ export const BRoll: React.FC<{ visual: Visual }> = ({ visual }) => {
       {visual.bRollUrl ? (
         <>
           <OffthreadVideo src={visual.bRollUrl} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          <AbsoluteFill style={{ background: "linear-gradient(to bottom, rgba(0,0,0,.25) 0%, rgba(0,0,0,0) 40%, rgba(0,0,0,.9) 100%)" }} />
+          <AbsoluteFill style={{ background: "linear-gradient(to bottom, rgba(0,0,0,.5) 0%, rgba(0,0,0,.1) 32%, rgba(0,0,0,.15) 60%, rgba(0,0,0,.85) 100%)" }} />
         </>
       ) : <SceneBg url={visual.bgImageUrl} />}
       {visual.caption && (
-        <div style={{ position: "absolute", top: "12%", left: "7%", right: "7%" }}>
-          <span style={{ fontFamily: sans, fontSize: 40 * fontScale, color: c.accent2, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" }}>{visual.caption}</span>
+        <div style={{ position: "absolute", top: "11%", left: "7%", right: "7%" }}>
+          <TextPlate style={{ display: "inline-block", padding: "14px 22px" }}>
+            <span style={{ fontFamily: sans, fontSize: 40 * fontScale, color: c.accent2, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase", textShadow: TEXT_SHADOW }}>{visual.caption}</span>
+          </TextPlate>
         </div>
       )}
       {visual.bRollCredit && <Credit text={visual.bRollCredit} />}
@@ -125,10 +143,10 @@ export const BigNumber: React.FC<{ visual: Visual }> = ({ visual }) => {
     <AbsoluteFill>
       <SceneBg url={visual.bgImageUrl} />
       <div style={{ ...box, alignItems: "center", textAlign: "center" }}>
-        <div style={{ fontFamily: display, fontSize: Math.min(220, fitTitle(visual.value) * 1.7) * fontScale, fontWeight: 600, color: c.accent, lineHeight: 1, transform: `scale(${interpolate(e, [0, 1], [0.78, 1])})`, opacity: e, textShadow: `0 0 80px ${c.accent}55` }}>
+        <div style={{ fontFamily: display, fontSize: Math.min(220, fitTitle(visual.value) * 1.7) * fontScale, fontWeight: 600, color: c.accent, lineHeight: 1, transform: `scale(${interpolate(e, [0, 1], [0.78, 1])})`, opacity: e, textShadow: `0 0 80px ${c.accent}55, ${TEXT_SHADOW}` }}>
           {visual.value}
         </div>
-        {visual.caption && <p style={{ fontFamily: sans, fontSize: (fitBody(visual.caption) + 6) * fontScale, color: c.text, marginTop: 26, opacity: e }}>{visual.caption}</p>}
+        {visual.caption && <p style={{ fontFamily: sans, fontSize: (fitBody(visual.caption) + 6) * fontScale, color: c.text, marginTop: 26, opacity: e, textShadow: TEXT_SHADOW }}>{visual.caption}</p>}
       </div>
     </AbsoluteFill>
   );
@@ -141,9 +159,9 @@ export const Quote: React.FC<{ visual: Visual }> = ({ visual }) => {
       <SceneBg url={visual.bgImageUrl} />
       <div style={box}>
         <div style={{ opacity: e, transform: `translateY(${interpolate(e, [0, 1], [40, 0])}px)` }}>
-          <div style={{ fontFamily: display, fontSize: 170 * fontScale, color: c.accent, height: 80 * fontScale, lineHeight: 1 }}>“</div>
-          <p style={{ fontFamily: display, fontSize: fitQuote(visual.quote) * fontScale, lineHeight: 1.25, color: c.text, fontStyle: "italic", margin: "0 0 28px" }}>{visual.quote}</p>
-          {visual.attribution && <p style={{ fontFamily: sans, fontSize: 40 * fontScale, color: c.muted }}>— {visual.attribution}</p>}
+          <div style={{ fontFamily: display, fontSize: 170 * fontScale, color: c.accent, height: 80 * fontScale, lineHeight: 1, textShadow: TEXT_SHADOW }}>“</div>
+          <p style={{ fontFamily: display, fontSize: fitQuote(visual.quote) * fontScale, lineHeight: 1.25, color: c.text, fontStyle: "italic", margin: "0 0 28px", textShadow: TEXT_SHADOW }}>{visual.quote}</p>
+          {visual.attribution && <p style={{ fontFamily: sans, fontSize: 40 * fontScale, color: c.muted, textShadow: TEXT_SHADOW }}>— {visual.attribution}</p>}
         </div>
       </div>
     </AbsoluteFill>
@@ -180,8 +198,8 @@ export const Outro: React.FC<{ visual: Visual }> = ({ visual }) => {
       <SceneBg url={visual.bgImageUrl} />
       <div style={{ ...box, alignItems: "center", textAlign: "center" }}>
         {!landscape && <div style={{ opacity: e, marginBottom: 22 }}><Mascot size={150} /></div>}
-        <h2 style={{ fontFamily: display, fontSize: fitTitle(visual.title) * 0.85 * fontScale, color: c.text, margin: 0 }}>{visual.title ?? "Thanks for watching"}</h2>
-        {visual.subtitle && <p style={{ fontFamily: sans, fontSize: fitBody(visual.subtitle) * fontScale, color: c.muted, marginTop: 22 }}>{visual.subtitle}</p>}
+        <h2 style={{ fontFamily: display, fontSize: fitTitle(visual.title) * 0.85 * fontScale, color: c.text, margin: 0, textShadow: TEXT_SHADOW }}>{visual.title ?? "Thanks for watching"}</h2>
+        {visual.subtitle && <p style={{ fontFamily: sans, fontSize: fitBody(visual.subtitle) * fontScale, color: c.muted, marginTop: 22, textShadow: TEXT_SHADOW }}>{visual.subtitle}</p>}
         <div style={{ width: 90, height: 6, background: c.accent, borderRadius: 99, marginTop: 36 }} />
       </div>
     </AbsoluteFill>
@@ -189,5 +207,5 @@ export const Outro: React.FC<{ visual: Visual }> = ({ visual }) => {
 };
 
 const Credit: React.FC<{ text: string }> = ({ text }) => (
-  <div style={{ position: "absolute", bottom: 26, left: 34, fontFamily: sans, fontSize: 20, color: "rgba(255,255,255,.5)" }}>{text}</div>
+  <div style={{ position: "absolute", bottom: 26, left: 34, fontFamily: sans, fontSize: 20, color: "rgba(255,255,255,.5)", textShadow: "0 1px 6px rgba(0,0,0,.6)" }}>{text}</div>
 );
