@@ -6,6 +6,7 @@ import { useTheme, useStyle, withAlpha, display, sans, hand, springFor } from ".
 import { fitTitle, fitBody, fitQuote } from "./text";
 import { useLayout } from "./layout";
 import { Mascot } from "./Character";
+import { assetSrc } from "./Video";
 
 const TEXT_SHADOW = "0 2px 18px rgba(0,0,0,0.55)";
 
@@ -21,7 +22,7 @@ const SceneBg: React.FC<{ url?: string | null }> = ({ url }) => {
   if (!url) return null;
   return (
     <AbsoluteFill>
-      <Img src={url} style={{ width: "100%", height: "100%", objectFit: "cover", filter: "blur(6px) brightness(0.55)", transform: "scale(1.12)" }} />
+      <Img src={assetSrc(url)} style={{ width: "100%", height: "100%", objectFit: "cover", filter: "blur(6px) brightness(0.55)", transform: "scale(1.12)" }} />
       <AbsoluteFill style={{ background: `linear-gradient(to bottom, ${withAlpha(c.bg, 0.55)}, ${withAlpha(c.bg, 0.82)})` }} />
       <AbsoluteFill style={{ background: `radial-gradient(ellipse 80% 70% at 50% 45%, transparent 0%, ${withAlpha(c.bg, 0.5)} 100%)` }} />
     </AbsoluteFill>
@@ -99,7 +100,7 @@ export const ImageCaption: React.FC<{ visual: Visual; durationInFrames: number }
     <AbsoluteFill style={{ background: c.bg }}>
       {visual.imageUrl ? (
         <>
-          <Img src={visual.imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover", transform: `scale(${scale}) translateY(${drift}px)` }} />
+          <Img src={assetSrc(visual.imageUrl)} style={{ width: "100%", height: "100%", objectFit: "cover", transform: `scale(${scale}) translateY(${drift}px)` }} />
           <AbsoluteFill style={{ background: "linear-gradient(to bottom, rgba(0,0,0,.55) 0%, rgba(0,0,0,.12) 30%, rgba(0,0,0,.15) 62%, rgba(0,0,0,.85) 100%)" }} />
         </>
       ) : <SceneBg url={visual.bgImageUrl} />}
@@ -121,7 +122,7 @@ export const BRoll: React.FC<{ visual: Visual }> = ({ visual }) => {
     <AbsoluteFill style={{ background: c.bg }}>
       {visual.bRollUrl ? (
         <>
-          <OffthreadVideo src={visual.bRollUrl} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <OffthreadVideo src={assetSrc(visual.bRollUrl)} muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           <AbsoluteFill style={{ background: "linear-gradient(to bottom, rgba(0,0,0,.5) 0%, rgba(0,0,0,.1) 32%, rgba(0,0,0,.15) 60%, rgba(0,0,0,.85) 100%)" }} />
         </>
       ) : <SceneBg url={visual.bgImageUrl} />}
@@ -206,7 +207,7 @@ export const Outro: React.FC<{ visual: Visual }> = ({ visual }) => {
   );
 };
 
-// ---- NEW: montage burst (3-5 images, beat-timed) ----
+// ---- montage burst (3-5 images, beat-timed) ----
 export const Montage: React.FC<{ visual: Visual; durationInFrames: number }> = ({ visual, durationInFrames }) => {
   const frame = useCurrentFrame(); const { fps } = useVideoConfig(); const c = useTheme(); const { fontScale } = useLayout();
   const urls = ((visual as any).imageUrls ?? []).slice(0, 5) as string[];
@@ -219,7 +220,7 @@ export const Montage: React.FC<{ visual: Visual; durationInFrames: number }> = (
   return (
     <AbsoluteFill style={{ background: c.bg }}>
       <AbsoluteFill style={{ opacity: inAnim }}>
-        <Img src={urls[idx]} style={{ width: "100%", height: "100%", objectFit: "cover", transform: `scale(${zoom})` }} />
+        <Img src={assetSrc(urls[idx])} style={{ width: "100%", height: "100%", objectFit: "cover", transform: `scale(${zoom})` }} />
         <AbsoluteFill style={{ background: "linear-gradient(to bottom, rgba(0,0,0,.5) 0%, rgba(0,0,0,.05) 35%, rgba(0,0,0,.7) 100%)" }} />
       </AbsoluteFill>
       <div style={{ position: "absolute", bottom: "16%", left: 0, right: 0, display: "flex", justifyContent: "center", gap: 12 }}>
@@ -238,7 +239,7 @@ export const Montage: React.FC<{ visual: Visual; durationInFrames: number }> = (
   );
 };
 
-// ---- NEW: split-screen comparison (X vs Y) ----
+// ---- split-screen comparison (X vs Y) ----
 export const Comparison: React.FC<{ visual: Visual }> = ({ visual }) => {
   const frame = useCurrentFrame(); const { fps } = useVideoConfig(); const c = useTheme(); const { fontScale, landscape } = useLayout();
   const v: any = visual;
@@ -246,7 +247,7 @@ export const Comparison: React.FC<{ visual: Visual }> = ({ visual }) => {
   const sR = spring({ frame: frame - 6, fps, config: { damping: 60, stiffness: 120 } });
   const Half: React.FC<{ url?: string | null; label?: string; anim: number; from: number; tint: string }> = ({ url, label, anim, from, tint }) => (
     <div style={{ flex: 1, position: "relative", overflow: "hidden", transform: landscape ? `translateX(${interpolate(anim, [0, 1], [from, 0])}px)` : `translateY(${interpolate(anim, [0, 1], [from, 0])}px)`, opacity: anim }}>
-      {url ? <Img src={url} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <AbsoluteFill style={{ background: tint }} />}
+      {url ? <Img src={assetSrc(url)} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <AbsoluteFill style={{ background: tint }} />}
       <AbsoluteFill style={{ background: "linear-gradient(to bottom, rgba(0,0,0,.2), rgba(0,0,0,.75))" }} />
       {label && (
         <div style={{ position: "absolute", left: 0, right: 0, bottom: "8%", textAlign: "center" }}>

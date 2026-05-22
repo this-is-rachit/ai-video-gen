@@ -1,17 +1,25 @@
 // remotion/Video.tsx
 import React from "react";
 import { SfxTrack } from "./Sfx";
-import { AbsoluteFill, Audio, interpolate, Series, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Audio, interpolate, Series, staticFile, useCurrentFrame } from "remotion";
 import { Project, Scene } from "@/lib/schema";
 import { ThemeContext, themeFor, StyleContext, packFor } from "./theme";
 import { Captions } from "./Captions";
 import { AnimatedBackground, Grain, Vignette, Progress } from "./Background";
 import { TitleCard, BulletReveal, ImageCaption, BRoll, BigNumber, Quote, Whiteboard, Outro, Montage, Comparison } from "./scenes";
 
+// Resolve a stored asset URL for both Player + render.
+// "/cache/.." or "/audio/.." → staticFile; remote/blob/data left untouched.
+export function assetSrc(u?: string | null): string {
+  if (!u) return "";
+  if (/^(https?:|blob:|data:|file:)/i.test(u)) return u;
+  return staticFile(u.replace(/^\//, ""));
+}
+
 // ---- music mix (ducking) ----
-const MUSIC_BASE = 0.12;   // quiet bed under narration
-const MUSIC_SWELL = 0.3;   // lift in intro / outro / silent gaps
-const EDGE = 12;           // hard fade-in/out at the very start & end
+const MUSIC_BASE = 0.12;
+const MUSIC_SWELL = 0.3;
+const EDGE = 12;
 
 const SceneInner: React.FC<{ scene: Scene; durationInFrames: number }> = ({ scene, durationInFrames }) => {
   const v = scene.visual;
@@ -45,7 +53,6 @@ const SceneView: React.FC<{ scene: Scene; durationInFrames: number }> = ({ scene
 export const totalFrames = (project: Project) =>
   project.scenes.reduce((a, s) => a + Math.max(1, s.durationFrames ?? 1), 0);
 
-// when (in frames) the narration starts and ends across the whole video
 function voiceWindow(project: Project, total: number) {
   const scenes = project.scenes;
   if (!scenes.length) return { firstVoice: 0, lastVoice: total };
@@ -73,7 +80,7 @@ const Music: React.FC<{ src: string; total: number; firstVoice: number; lastVoic
     const edge = interpolate(f, [0, EDGE, total - EDGE, total], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
     return Math.max(0, v * edge);
   };
-  return <Audio src={src} volume={volume} loop />;
+  return <Audio src={assetSrc(src)} volume={volume} loop />;
 };
 
 export const MainVideo: React.FC<{ project: Project }> = ({ project }) => {
@@ -92,7 +99,7 @@ export const MainVideo: React.FC<{ project: Project }> = ({ project }) => {
             return (
               <Series.Sequence key={scene.id} durationInFrames={d}>
                 <SceneView scene={scene} durationInFrames={d} />
-                {scene.audioUrl && <Audio src={scene.audioUrl} />}
+                {scene.audioUrl && <Audio src={assetSrc(scene.audioUrl)} />}
               </Series.Sequence>
             );
           })}

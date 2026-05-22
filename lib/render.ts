@@ -8,30 +8,17 @@ import { getProject, saveProject } from "./store";
 import { localizeAssets } from "./assets";
 import type { Project } from "./schema";
 
-const BASE = process.env.RENDER_BASE_URL || "http://localhost:3000";
-
 export type Quality = "quick" | "hd";
 const PRESETS: Record<Quality, { scale: number; x264Preset: any; crf: number; jpegQuality: number }> = {
-  quick: { scale: 2 / 3, x264Preset: "veryfast", crf: 26, jpegQuality: 80 }, // ~720x1280, fast
-  hd:    { scale: 1,     x264Preset: "fast",     crf: 21, jpegQuality: 90 }, // 1080x1920
+  quick: { scale: 2 / 3, x264Preset: "veryfast", crf: 26, jpegQuality: 80 },
+  hd:    { scale: 1,     x264Preset: "fast",     crf: 21, jpegQuality: 90 },
 };
 
 type Job = { status: "rendering" | "done" | "error"; progress: number; videoUrl?: string; error?: string; quality?: Quality };
 const jobs = new Map<string, Job>();
 export const getJob = (id: string) => jobs.get(id);
 
-function absolutize(project: Project): Project {
-  const fix = (u?: string | null) => (u && u.startsWith("/") ? BASE + u : u ?? null);
-  const p: Project = JSON.parse(JSON.stringify(project));
-  p.musicUrl = fix(p.musicUrl);
-  p.scenes.forEach((s) => {
-    s.audioUrl = fix(s.audioUrl);
-    s.visual.imageUrl = fix(s.visual.imageUrl);
-    s.visual.bgImageUrl = fix(s.visual.bgImageUrl);
-    s.visual.bRollUrl = fix(s.visual.bRollUrl);
-  });
-  return p;
-}
+const PUBLIC_DIR = path.join(process.cwd(), "public");
 
 let cachedServeUrl: string | null = null;
 async function getServeUrl(): Promise<string> {
@@ -39,6 +26,9 @@ async function getServeUrl(): Promise<string> {
   console.log("[render] bundling composition (first time ~1 min)...");
   cachedServeUrl = await bundle({
     entryPoint: path.join(process.cwd(), "remotion", "index.ts"),
+    // serve everything in /public (cache, audio, music) from Remotion's own
+    // static server during render — no localhost, no port, no file:// quirks.
+    publicDir: PUBLIC_DIR,
     webpackOverride: (config) => ({
       ...config,
       resolve: { ...config.resolve, alias: { ...(config.resolve?.alias || {}), "@": process.cwd() } },
@@ -67,18 +57,19 @@ export async function startRender(id: string, quality: Quality = "quick"): Promi
 
       await ensureBrowser();
 
-      // 1) cache all remote assets locally so the render reads from disk (big speed + reliability win)
       console.log(`[render] ${id} caching assets locally...`);
       const localized = await localizeAssets(project);
-      // persist localized URLs so preview + future renders reuse the cache
+      // store RELATIVE urls only (portable, deploy-safe, no port baked in)
       project.scenes = localized.scenes;
+      project.musicUrl = localized.musicUrl;
       await saveProject(project);
 
       const serveUrl = await getServeUrl();
-      const inputProps = { project: absolutize(localized) };
+      // pass RELATIVE urls; Remotion resolves them via staticFile against publicDir
+      const inputProps = { project: localized };
       const composition = await selectComposition({ serveUrl, id: "main", inputProps });
 
-      const outDir = path.join(process.cwd(), "public", "videos");
+      const outDir = path.join(PUBLIC_DIR, "videos");
       await fs.mkdir(outDir, { recursive: true });
       const outPath = path.join(outDir, `${id}.mp4`);
 
