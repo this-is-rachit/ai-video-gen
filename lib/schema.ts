@@ -12,6 +12,8 @@ export const VisualSchema = z.object({
   subtitle: z.string().optional(),
   bullets: z.array(z.string()).optional(),
   imageQuery: z.string().optional(),   // for image_caption / backgrounds
+  imageUrl: z.string().nullable().optional(),    // resolved Pexels URL (cache)
+  imageCredit: z.string().nullable().optional(),
   value: z.string().optional(),        // for big_number, e.g. "13.8 billion years"
   caption: z.string().optional(),
   quote: z.string().optional(),
