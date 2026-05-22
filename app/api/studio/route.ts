@@ -114,11 +114,16 @@ export async function POST(req: Request) {
     if (noMedia) warnings.push(`${noMedia} scene(s) had no stock media (Pexels limit or no match).`);
     console.log(`[studio] ${project.id} ✓ media`);
 
-   // 6) MUSIC — dynamic (Jamendo by mood) with local fallback
-    const m = await pickMusic(project.id + topic);
+   // 6) MUSIC — topic-matched (Jamendo by mood) with local fallback
+    const scriptText = project.scenes
+      .map((s: any) => [s.visual.title, s.visual.subtitle, s.visual.caption, s.visual.quote, ...(s.visual.bullets || [])].filter(Boolean).join(" "))
+      .join(" ");
+    const m = await pickMusic(topic, scriptText);
     project.musicUrl = m?.url ?? null;
     project.musicCredit = m?.credit ?? null;
-    if (!m) warnings.push("No music (add JAMENDO_CLIENT_ID to .env.local or drop mp3s in /public/music).");
+    project.musicMood = m?.mood ?? null;
+    if (m) console.log(`[studio] music mood: ${m.mood}`);
+    else warnings.push("No music (add JAMENDO_CLIENT_ID to .env.local or drop mp3s in /public/music).");
 
     project.status = "done";
     const saved = await saveProject(project);

@@ -7,6 +7,11 @@ import { Captions } from "./Captions";
 import { AnimatedBackground, Grain, Vignette, Progress } from "./Background";
 import { TitleCard, BulletReveal, ImageCaption, BRoll, BigNumber, Quote, Whiteboard, Outro } from "./scenes";
 
+// ---- music mix (ducking) ----
+const MUSIC_BASE = 0.12;   // quiet bed under narration
+const MUSIC_SWELL = 0.3;   // lift in intro / outro / silent gaps
+const EDGE = 12;           // hard fade-in/out at the very start & end
+
 const SceneInner: React.FC<{ scene: Scene; durationInFrames: number }> = ({ scene, durationInFrames }) => {
   const v = scene.visual;
   switch (v.template) {
@@ -37,8 +42,41 @@ const SceneView: React.FC<{ scene: Scene; durationInFrames: number }> = ({ scene
 export const totalFrames = (project: Project) =>
   project.scenes.reduce((a, s) => a + Math.max(1, s.durationFrames ?? 1), 0);
 
+// when (in frames) the narration starts and ends across the whole video
+function voiceWindow(project: Project, total: number) {
+  const scenes = project.scenes;
+  if (!scenes.length) return { firstVoice: 0, lastVoice: total };
+  const fps = project.fps || 30;
+  const w0 = scenes[0].words?.[0];
+  const firstVoice = Math.round((w0 ? w0.start : 0) * fps);
+  let start = 0, lastVoice = total;
+  for (let i = 0; i < scenes.length; i++) {
+    const d = Math.max(1, scenes[i].durationFrames ?? 1);
+    if (i === scenes.length - 1) {
+      const ws = scenes[i].words;
+      const lastSec = ws && ws.length ? ws[ws.length - 1].end : d / fps;
+      lastVoice = start + Math.round(lastSec * fps);
+    }
+    start += d;
+  }
+  return { firstVoice, lastVoice };
+}
+
+const Music: React.FC<{ src: string; total: number; firstVoice: number; lastVoice: number }> = ({ src, total, firstVoice, lastVoice }) => {
+  const volume = (f: number) => {
+    let v = MUSIC_BASE;
+    if (f < firstVoice) v = interpolate(f, [0, Math.max(1, firstVoice)], [MUSIC_SWELL, MUSIC_BASE], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+    else if (f > lastVoice) v = interpolate(f, [lastVoice, total], [MUSIC_BASE, MUSIC_SWELL], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+    const edge = interpolate(f, [0, EDGE, total - EDGE, total], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+    return Math.max(0, v * edge);
+  };
+  return <Audio src={src} volume={volume} loop />;
+};
+
 export const MainVideo: React.FC<{ project: Project }> = ({ project }) => {
   const palette = themeFor(project.topic);
+  const total = totalFrames(project);
+  const { firstVoice, lastVoice } = voiceWindow(project, total);
   return (
     <ThemeContext.Provider value={palette}>
       <AbsoluteFill style={{ backgroundColor: palette.bg }}>
@@ -54,10 +92,10 @@ export const MainVideo: React.FC<{ project: Project }> = ({ project }) => {
             );
           })}
         </Series>
-        {project.musicUrl && <Audio src={project.musicUrl} volume={0.11} loop />}
+        {project.musicUrl && <Music src={project.musicUrl} total={total} firstVoice={firstVoice} lastVoice={lastVoice} />}
         <Grain />
         <Vignette />
-        <Progress total={totalFrames(project)} />
+        <Progress total={total} />
       </AbsoluteFill>
     </ThemeContext.Provider>
   );
