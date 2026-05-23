@@ -3,7 +3,7 @@ import React from "react";
 import { useCurrentFrame, useVideoConfig } from "remotion";
 import { Word } from "@/lib/schema";
 import { groupIntoLines } from "@/lib/captions";
-import { useTheme, useStyle} from "./theme";
+import { useTheme, useStyle, useLang, fontStackFor } from "./theme";
 import { useLayout } from "./layout";
 
 export const Captions: React.FC<{ words: Word[] }> = ({ words }) => {
@@ -11,6 +11,7 @@ export const Captions: React.FC<{ words: Word[] }> = ({ words }) => {
   const { fps } = useVideoConfig();
   const c = useTheme();
   const s = useStyle();
+  const lang = useLang();
   const { captionBottom, captionFont, w } = useLayout();
   const t = frame / fps;
   if (!words.length) return null;
@@ -34,7 +35,7 @@ export const Captions: React.FC<{ words: Word[] }> = ({ words }) => {
   return (
     <div style={{ position: "absolute", left: 0, right: 0, bottom: captionBottom, display: "flex", justifyContent: "center", padding: s.caption === "bottombar" ? 0 : `0 ${Math.round(w * 0.06)}px` }}>
       <div style={{ ...container, maxWidth: s.caption === "bottombar" ? "100%" : Math.round(w * 0.86) }}>
-        <div style={{ fontFamily: s.bodyFont, fontWeight: 700, fontSize: captionFont, lineHeight: 1.22, textAlign: "center", textShadow: s.caption === "underline" ? "0 4px 18px rgba(0,0,0,.7)" : "0 4px 18px rgba(0,0,0,.5)" }}>
+          <div style={{ fontFamily: fontStackFor(s.bodyFont, lang), fontWeight: 700, fontSize: captionFont, lineHeight: 1.22, textAlign: "center", textShadow: s.caption === "underline" ? "0 4px 18px rgba(0,0,0,.7)" : "0 4px 18px rgba(0,0,0,.5)" }}>
           {active.words.map((wd, i) => {
             const spoken = t >= wd.start;
             const speaking = spoken && t < wd.end;

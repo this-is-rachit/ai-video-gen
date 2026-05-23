@@ -3,7 +3,7 @@ import React from "react";
 import { SfxTrack } from "./Sfx";
 import { AbsoluteFill, Audio, interpolate, Series, staticFile, useCurrentFrame } from "remotion";
 import { Project, Scene } from "@/lib/schema";
-import { ThemeContext, themeFor, StyleContext, packFor } from "./theme";
+import { ThemeContext, themeFor, StyleContext, packFor, LangContext } from "./theme";
 import { Captions } from "./Captions";
 import { AnimatedBackground, Grain, Vignette, Progress } from "./Background";
 import { TitleCard, BulletReveal, ImageCaption, BRoll, BigNumber, Quote, Whiteboard, Outro, Montage, Comparison } from "./scenes";
@@ -91,6 +91,7 @@ export const MainVideo: React.FC<{ project: Project }> = ({ project }) => {
   return (
     <ThemeContext.Provider value={palette}>
       <StyleContext.Provider value={pack}>
+      <LangContext.Provider value={project.language || "en-US"}>
       <AbsoluteFill style={{ backgroundColor: palette.bg }}>
         <AnimatedBackground />
         <Series>
@@ -110,6 +111,7 @@ export const MainVideo: React.FC<{ project: Project }> = ({ project }) => {
         <Vignette />
         <Progress total={total} />
       </AbsoluteFill>
+    </LangContext.Provider>
     </StyleContext.Provider>
     </ThemeContext.Provider>
   );

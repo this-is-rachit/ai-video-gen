@@ -1,4 +1,5 @@
 // remotion/theme.ts
+import { langFontFor } from "./fonts";
 import { createContext, useContext } from "react";
 import { loadFont as loadFraunces } from "@remotion/google-fonts/Fraunces";
 import { loadFont as loadDMSans } from "@remotion/google-fonts/DMSans";
@@ -109,3 +110,18 @@ export const useTheme = () => useContext(ThemeContext);
 
 export const StyleContext = createContext<StylePack>(PACKS.cinematic);
 export const useStyle = () => useContext(StyleContext);
+
+// The video's language, provided by Video.tsx so captions/scenes can append the
+// right script font. Defaults to English (no extra font needed).
+export const LangContext = createContext<string>("en-US");
+export const useLang = () => useContext(LangContext);
+
+/**
+ * Build a CSS font-family stack: the requested font(s) first, then the
+ * language's script font as a fallback so non-Latin glyphs render instead of
+ * showing boxes. For Latin languages this just returns the base font unchanged.
+ */
+export function fontStackFor(baseFont: string, locale?: string | null): string {
+  const lf = langFontFor(locale);
+  return lf ? `${baseFont}, ${lf}` : baseFont;
+}
