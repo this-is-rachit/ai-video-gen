@@ -28,10 +28,24 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   try {
     const { id } = await params;
     const { getJob } = await import("@/lib/render");
+
+    // 1) In-memory job is the freshest source while it exists.
     const job = getJob(id);
     if (job) return NextResponse.json(job);
+
+    // 2) Fallback: reconstruct status from the persisted project file. This is
+    //    what lets the UI reconnect after a dev recompile wipes the job map —
+    //    the render task is still running and still writing progress to disk.
     const project = await getProject(id);
-    if (project?.videoUrl) return NextResponse.json({ status: "done", progress: 1, videoUrl: project.videoUrl });
+    if (project?.videoUrl && project.status === "done") {
+      return NextResponse.json({ status: "done", progress: 1, videoUrl: project.videoUrl });
+    }
+    if (project?.status === "rendering") {
+      return NextResponse.json({ status: "rendering", progress: project.renderProgress ?? 0, quality: project.renderQuality ?? "quick" });
+    }
+    if (project?.status === "error") {
+      return NextResponse.json({ status: "error", progress: 0, error: "Render failed (see server logs)" });
+    }
     return NextResponse.json({ status: "idle", progress: 0 });
   } catch (e: any) {
     console.error("[render route] GET failed:", e?.message || e);

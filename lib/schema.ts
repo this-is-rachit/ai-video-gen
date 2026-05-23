@@ -77,6 +77,8 @@ export const ProjectSchema = z.object({
   musicMood: z.string().nullable().optional(),
   stylePack: z.string().nullable().optional(),
   aspect: z.enum(["portrait", "landscape"]).default("portrait"),
+  renderProgress: z.number().nullable().optional(),
+  renderQuality: z.enum(["quick", "hd"]).nullable().optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
