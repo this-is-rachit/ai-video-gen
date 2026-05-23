@@ -3,16 +3,40 @@ import { Word } from "./schema";
 
 const DG_URL = "https://api.deepgram.com/v1/listen";
 
-/** Map our Falcon locale to a Deepgram language code. */
+/**
+ * Map our Falcon locale to a Deepgram language code.
+ * Codes verified against Deepgram's Models & Languages table (nova-3).
+ */
 export function localeToDeepgramLang(locale: string): string {
   const base = locale.toLowerCase();
   const map: Record<string, string> = {
-    "en-us": "en", "en-uk": "en", "en-in": "en", "en-au": "en",
-    "hi-in": "hi", "es-es": "es", "es-mx": "es",
-    "fr-fr": "fr", "fr-ca": "fr", "de-de": "de", "it-it": "it",
-    "pt-br": "pt", "ja-jp": "ja", "ko-kr": "ko", "zh-cn": "zh", "nl-nl": "nl",
+    // English variants
+    "en-us": "en-US", "en-uk": "en-GB", "en-gb": "en-GB", "en-in": "en-IN", "en-au": "en-AU",
+    // our curated 12
+    "hi-in": "hi",
+    "es-es": "es", "es-mx": "es",
+    "fr-fr": "fr", "fr-ca": "fr-CA",
+    "de-de": "de",
+    "pt-br": "pt-BR",
+    "it-it": "it",
+    "ja-jp": "ja",
+    "ko-kr": "ko",
+    "zh-cn": "zh-CN",
+    "bn-in": "bn",
+    // a few extras that map cleanly if ever used
+    "nl-nl": "nl", "ta-in": "ta", "te-in": "te", "mr-in": "mr", "gu-in": "gu",
   };
   return map[base] ?? base.split("-")[0];
+}
+
+/**
+ * nova-3 now covers all 12 of our languages as monolingual models and is more
+ * accurate than nova-2, so we use it for everything. If Deepgram ever rejects a
+ * language on nova-3, the studio route's estimation fallback still produces
+ * captions — so this is safe.
+ */
+function modelForLang(_lang: string): string {
+  return "nova-3";
 }
 
 /** Get word-level timestamps for one audio clip. Times are relative to the clip start. */
@@ -21,8 +45,7 @@ export async function alignWithDeepgram(wav: Buffer, locale: string): Promise<Wo
   if (!key) throw new Error("DEEPGRAM_API_KEY missing in .env.local");
 
   const lang = localeToDeepgramLang(locale);
-  // nova-3 = best for English; nova-2 covers 40+ languages.
-  const model = lang === "en" ? "nova-3" : "nova-2";
+  const model = modelForLang(lang);
 
   const params = new URLSearchParams({
     model,
