@@ -34,6 +34,7 @@ export default function Studio() {
   const [renderPct, setRenderPct] = useState(0);
   const [renderLabel, setRenderLabel] = useState("");
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [doneQuality, setDoneQuality] = useState<"quick" | "hd" | null>(null);
   const [renderError, setRenderError] = useState("");
   const stepTimer = useRef<any>(null);
   const pollTimer = useRef<any>(null);
@@ -61,6 +62,8 @@ export default function Studio() {
     clearInterval(pollTimer.current);
     setProject(p); setWarnings([]); setError(null); setRenderError("");
     setVideoUrl(p?.videoUrl || null); setRendering(false); setRenderPct(0);
+    // if this project was already rendered, trust its stored quality
+    setDoneQuality(p?.videoUrl ? (p?.renderQuality ?? null) : null);
   }
 
   async function generate() {
@@ -78,7 +81,7 @@ export default function Studio() {
 
   async function renderVideo(projectId?: string, q: "quick" | "hd" = quality) {
     const id = projectId || project?.id; if (!id) return;
-    setRenderError(""); setRendering(true); setRenderPct(0); setVideoUrl(null); setRenderLabel(q === "hd" ? "HD" : "Quick");
+    setRenderError(""); setRendering(true); setRenderPct(0); setVideoUrl(null); setDoneQuality(null); setRenderLabel(q === "hd" ? "HD" : "Quick");
     try {
       const res = await fetch(`/api/projects/${id}/render`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ quality: q }) });
       const text = await res.text(); let data: any; try { data = JSON.parse(text); } catch { throw new Error(`Server returned non-JSON: ${text.slice(0, 80)}`); }
@@ -89,7 +92,7 @@ export default function Studio() {
         try {
           const j = await (await fetch(`/api/projects/${id}/render`)).json();
           if (j.status === "rendering") setRenderPct(j.progress || 0);
-          else if (j.status === "done") { clearInterval(pollTimer.current); setRendering(false); setRenderPct(1); setVideoUrl(j.videoUrl); }
+          else if (j.status === "done") { clearInterval(pollTimer.current); setRendering(false); setRenderPct(1); setVideoUrl(j.videoUrl); setDoneQuality((j.quality as "quick" | "hd") ?? q); }
           else if (j.status === "error") { clearInterval(pollTimer.current); setRendering(false); setRenderError(j.error || "Render failed"); }
           else { clearInterval(pollTimer.current); setRendering(false); setRenderError("Render job not found — retry."); }
         } catch { clearInterval(pollTimer.current); setRendering(false); setRenderError("Lost connection to render job."); }
@@ -166,7 +169,15 @@ export default function Studio() {
               {rendering ? (
                 <div><div style={{ fontSize: 14, marginBottom: 6 }}>{renderPct > 0 ? `Rendering ${renderLabel}… ${Math.round(renderPct * 100)}%` : "Preparing…"}</div><div style={ST.barOuter}><div style={{ ...ST.barInner, width: `${Math.max(4, renderPct * 100)}%` }} /></div></div>
               ) : videoUrl ? (
-                <><a href={videoUrl} download={`${project.id}.mp4`} style={{ ...ST.download, textAlign: "center" }}>⬇ Download MP4</a><button onClick={() => renderVideo(project.id, "hd")} style={ST.secondary}>💎 Re-render in HD</button></>
+                <>
+                  <div style={ST.qualityTag}>{doneQuality === "hd" ? "💎 HD video ready" : "⚡ Quick video ready"}</div>
+                  <a href={videoUrl} download={`${project.id}.mp4`} style={{ ...ST.download, textAlign: "center" }}>⬇ Download MP4</a>
+                  {doneQuality === "hd" ? (
+                    <button disabled style={{ ...ST.secondary, ...ST.secondaryDone }}>✓ Already top quality (HD)</button>
+                  ) : (
+                    <button onClick={() => renderVideo(project.id, "hd")} style={ST.secondary}>💎 Re-render in HD</button>
+                  )}
+                </>
               ) : (
                 <button onClick={() => renderVideo(project.id, quality)} style={ST.download}>🎬 Render &amp; download</button>
               )}
@@ -197,8 +208,10 @@ const ST: Record<string, React.CSSProperties> = {
   warn: { background: "#f7eccf", border: "1px solid #ddc079", color: "#7a5a18", borderRadius: 12, padding: 12, fontSize: 13, display: "grid", gap: 4 },
   clear: { padding: "12px 16px", background: "#faf6ee", color: "var(--accent)", border: "1.5px solid #e0d4bd", borderRadius: 12, cursor: "pointer" },
   result: { marginTop: 30, display: "flex", flexDirection: "column", gap: 14, alignItems: "center" },
+  qualityTag: { textAlign: "center", fontSize: 13, fontWeight: 600, color: "var(--accent-2)" },
   download: { padding: "13px 16px", background: "var(--accent-2)", color: "#fff", border: "none", borderRadius: 12, cursor: "pointer", fontWeight: 700, textDecoration: "none", display: "block" },
   secondary: { padding: "11px 16px", background: "#faf6ee", color: "var(--ink)", border: "1.5px solid #e0d4bd", borderRadius: 12, cursor: "pointer", fontWeight: 600 },
+  secondaryDone: { opacity: 0.7, cursor: "default", color: "var(--muted)" },
   barOuter: { height: 10, background: "var(--bg-2)", borderRadius: 99, overflow: "hidden" },
   barInner: { height: "100%", background: "var(--accent)", transition: "width .4s" },
 };
