@@ -5,11 +5,12 @@ import dynamic from "next/dynamic";
 import { Player } from "@remotion/player";
 import { MainVideo, totalFrames } from "@/remotion/Video";
 import Dock from "@/components/Dock";
+import { LANGUAGES } from "@/lib/voices";
 
 const InteractiveField = dynamic(() => import("@/components/InteractiveField"), { ssr: false });
 
 const PROVIDERS = [["google", "Google (Gemini)"], ["openai", "OpenAI"], ["anthropic", "Anthropic"], ["xai", "xAI (Grok)"], ["groq", "Groq (Llama, free)"]];
-const LANGS = [["en-US", "English"], ["hi-IN", "Hindi"], ["es-ES", "Spanish"], ["fr-FR", "French"]];
+const LANGS = LANGUAGES.map((l) => [l.locale, l.label] as [string, string]);
 const STEPS = ["Writing script", "Generating voice", "Aligning captions", "Fetching media", "Finishing"];
 const isViewable = (p: any) =>
   Array.isArray(p?.scenes) && p.scenes.length > 0 && p.scenes.every((s: any) => s.durationFrames);
