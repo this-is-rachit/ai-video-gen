@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { Player } from "@remotion/player";
 import { MainVideo, totalFrames } from "@/remotion/Video";
 import Dock from "@/components/Dock";
-import { LANGUAGES } from "@/lib/voices";
+import { LANGUAGES, voicesForLocale, defaultVoiceForLocale } from "@/lib/voices";
 
 const InteractiveField = dynamic(() => import("@/components/InteractiveField"), { ssr: false });
 
@@ -18,6 +18,7 @@ const isViewable = (p: any) =>
 export default function Studio() {
   const [topic, setTopic] = useState("");
   const [language, setLanguage] = useState("en-US");
+  const [voiceId, setVoiceId] = useState(defaultVoiceForLocale("en-US"));
   const [provider, setProvider] = useState("google");
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("");
@@ -43,7 +44,7 @@ export default function Studio() {
     setApiKey(localStorage.getItem("llm_key") || "");
     setModel(localStorage.getItem("llm_model") || "");
     loadRecent();
-    fetch("/api/warmup").catch(() => {});
+    fetch("/api/warmup").catch(() => { });
     return () => { clearInterval(pollTimer.current); clearInterval(stepTimer.current); };
   }, []);
   useEffect(() => { localStorage.setItem("llm_provider", provider); }, [provider]);
@@ -54,7 +55,7 @@ export default function Studio() {
     try {
       const all = await (await fetch("/api/projects")).json();
       setRecent((all || []).filter(isViewable));
-    } catch {}
+    } catch { }
   }
   function selectProject(p: any) {
     clearInterval(pollTimer.current);
@@ -67,8 +68,7 @@ export default function Studio() {
     clearInterval(stepTimer.current);
     stepTimer.current = setInterval(() => setStep((s) => Math.min(s + 1, STEPS.length - 1)), 16000);
     try {
-      const res = await fetch("/api/studio", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ topic, language, provider, apiKey, model, aspect }) });
-      const text = await res.text();
+      const res = await fetch("/api/studio", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ topic, language, voiceId, provider, apiKey, model, aspect }) });      const text = await res.text();
       let data: any; try { data = JSON.parse(text); } catch { throw new Error(`Server returned non-JSON: ${text.slice(0, 80)}`); }
       if (!res.ok) { console.error(`[video-gen] ${String(data.service).toUpperCase()} error:`, data.error); setError({ service: data.service || "server", msg: data.error || "Failed" }); }
       else { (data.warnings || []).forEach((w: string) => console.warn("[video-gen]", w)); setWarnings(data.warnings || []); selectProject(data); loadRecent(); renderVideo(data.id, quality); }
@@ -110,7 +110,7 @@ export default function Studio() {
 
   return (
     <div style={{ minHeight: "100vh", position: "relative", overflow: "hidden" }}>
-        <style>{`
+      <style>{`
           .studio-card { animation: cardIn .6s ease both; }
           @keyframes cardIn { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
           .field-fade { animation: fieldIn .8s ease both; }
@@ -132,8 +132,9 @@ export default function Studio() {
           <Field label="Your LLM API key (stays in your browser)"><input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="Paste your API key" style={ST.inp} /></Field>
           <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12 }}>
             <Field label="Topic"><input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g. How black holes work" style={ST.inp} /></Field>
-            <Field label="Language"><select value={language} onChange={(e) => setLanguage(e.target.value)} style={ST.inp}>{LANGS.map(([id, l]) => <option key={id} value={id}>{l}</option>)}</select></Field>
+            <Field label="Language"><select value={language} onChange={(e) => { const loc = e.target.value; setLanguage(loc); setVoiceId(defaultVoiceForLocale(loc)); }} style={ST.inp}>{LANGS.map(([id, l]) => <option key={id} value={id}>{l}</option>)}</select></Field>
           </div>
+          <Field label="Voice"><select value={voiceId} onChange={(e) => setVoiceId(e.target.value)} style={ST.inp}>{voicesForLocale(language).map((v) => <option key={v.voiceId} value={v.voiceId}>{v.name}</option>)}</select></Field>
           <Field label="Format">
             <div style={{ display: "flex", gap: 10 }}>
               {(["portrait", "landscape"] as const).map((a) => <button key={a} onClick={() => setAspect(a)} style={{ ...ST.toggle, ...(aspect === a ? ST.toggleOn : {}) }}>{a === "portrait" ? "📱 Portrait 9:16" : "🖥️ Landscape 16:9"}</button>)}
