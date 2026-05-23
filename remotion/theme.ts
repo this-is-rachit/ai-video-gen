@@ -10,17 +10,24 @@ import { loadFont as loadPlayfair } from "@remotion/google-fonts/PlayfairDisplay
 import { loadFont as loadInter } from "@remotion/google-fonts/Inter";
 import { loadFont as loadBebas } from "@remotion/google-fonts/BebasNeue";
 
+// CRITICAL: scope each font to the weights we use + the latin subset. Calling
+// loadFont() with no args loads EVERY weight × EVERY subset (Inter alone = 126
+// requests) which, × 8 render tabs, caused OOM crashes ("Target closed") and
+// huge latency. NOTE: subsets is passed inline (NOT `as const`) because
+// loadFont expects a mutable array, and each font only accepts the weights it
+// actually ships.
+
 // base fonts (kept for back-compat with existing imports)
-export const display = loadFraunces().fontFamily;
-export const sans = loadDMSans().fontFamily;
-export const hand = loadCaveat().fontFamily;
+export const display = loadFraunces("normal", { weights: ["400", "600", "700"], subsets: ["latin"] }).fontFamily;
+export const sans = loadDMSans("normal", { weights: ["400", "500", "700"], subsets: ["latin"] }).fontFamily;
+export const hand = loadCaveat("normal", { weights: ["400", "700"], subsets: ["latin"] }).fontFamily;
 
 // extra fonts for style packs
-const fArchivo = loadArchivo().fontFamily;
-const fSpace = loadSpaceGrotesk().fontFamily;
-const fPlayfair = loadPlayfair().fontFamily;
-const fInter = loadInter().fontFamily;
-const fBebas = loadBebas().fontFamily;
+const fArchivo = loadArchivo("normal", { weights: ["400"], subsets: ["latin"] }).fontFamily;
+const fSpace = loadSpaceGrotesk("normal", { weights: ["400", "700"], subsets: ["latin"] }).fontFamily;
+const fPlayfair = loadPlayfair("normal", { weights: ["400", "700"], subsets: ["latin"] }).fontFamily;
+const fInter = loadInter("normal", { weights: ["400", "700", "800"], subsets: ["latin"] }).fontFamily;
+const fBebas = loadBebas("normal", { weights: ["400"], subsets: ["latin"] }).fontFamily;
 
 export function dimensions(aspect?: string) {
   return aspect === "landscape"
@@ -111,16 +118,9 @@ export const useTheme = () => useContext(ThemeContext);
 export const StyleContext = createContext<StylePack>(PACKS.cinematic);
 export const useStyle = () => useContext(StyleContext);
 
-// The video's language, provided by Video.tsx so captions/scenes can append the
-// right script font. Defaults to English (no extra font needed).
 export const LangContext = createContext<string>("en-US");
 export const useLang = () => useContext(LangContext);
 
-/**
- * Build a CSS font-family stack: the requested font(s) first, then the
- * language's script font as a fallback so non-Latin glyphs render instead of
- * showing boxes. For Latin languages this just returns the base font unchanged.
- */
 export function fontStackFor(baseFont: string, locale?: string | null): string {
   const lf = langFontFor(locale);
   return lf ? `${baseFont}, ${lf}` : baseFont;

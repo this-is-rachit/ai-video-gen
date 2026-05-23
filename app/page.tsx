@@ -29,6 +29,9 @@ export default function Landing() {
   const rowARef = useRef<HTMLDivElement>(null);
   const rowBRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    // Kick the Remotion bundle warmup while the user reads the homepage, so the
+    // first render in Studio doesn't pay the ~1-min bundle cost.
+    fetch("/api/warmup").catch(() => {});
     gsap.registerPlugin(ScrollTrigger);
     const ctx = gsap.context(() => {
       gsap.to(bar.current, { scaleX: 1, ease: "none", scrollTrigger: { start: 0, end: "max", scrub: 0.3 } });
