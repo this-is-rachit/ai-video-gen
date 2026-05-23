@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Dock from "@/components/Dock";
-
+import { LANGUAGE_COUNT } from "@/lib/voices";
 const InteractiveField = dynamic(() => import("@/components/InteractiveField"), { ssr: false });
 
 const MARQUEE_A = ["Black holes", "How GPS works", "The French Revolution", "Compound interest", "Photosynthesis", "Why the sky is blue"];
@@ -18,12 +18,11 @@ const STEPS = [
 ];
 const FEATURES = [
   { i: "✍️", t: "Researched scripts", d: "Bring your own LLM key. We turn a topic into punchy, accurate narration." },
-  { i: "🎙️", t: "Real voice + captions", d: "Falcon narration with karaoke captions across 35+ languages." },
+  { i: "🎙️", t: "Real voice + captions", d: `Falcon narration with word-synced captions across ${LANGUAGE_COUNT} languages.` },
   { i: "🎬", t: "Cinematic visuals", d: "Animated scenes, stock photos & b-roll, and a palette that shifts per topic." },
   { i: "📐", t: "Both formats", d: "Portrait and landscape from the same project — one click each." },
 ];
-const STATS = [{ v: 35, s: "+", l: "Languages" }, { v: 8, s: "", l: "Scene styles" }, { v: 2, s: "", l: "Aspect ratios" }, { v: 1, s: "-click", l: "To a finished video" }];
-
+const STATS = [{ v: LANGUAGE_COUNT, s: "", l: "Languages" }, { v: 10, s: "", l: "Scene templates" }, { v: 6, s: "", l: "Style packs" }, { v: 1, s: "-click", l: "To a finished video" }];
 export default function Landing() {
   const root = useRef<HTMLDivElement>(null);
   const bar = useRef<HTMLDivElement>(null);
