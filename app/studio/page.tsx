@@ -11,6 +11,8 @@ const InteractiveField = dynamic(() => import("@/components/InteractiveField"), 
 const PROVIDERS = [["google", "Google (Gemini)"], ["openai", "OpenAI"], ["anthropic", "Anthropic"], ["xai", "xAI (Grok)"], ["groq", "Groq (Llama, free)"]];
 const LANGS = [["en-US", "English"], ["hi-IN", "Hindi"], ["es-ES", "Spanish"], ["fr-FR", "French"]];
 const STEPS = ["Writing script", "Generating voice", "Aligning captions", "Fetching media", "Finishing"];
+const isViewable = (p: any) =>
+  Array.isArray(p?.scenes) && p.scenes.length > 0 && p.scenes.every((s: any) => s.durationFrames);
 
 export default function Studio() {
   const [topic, setTopic] = useState("");
@@ -47,7 +49,12 @@ export default function Studio() {
   useEffect(() => { localStorage.setItem("llm_key", apiKey); }, [apiKey]);
   useEffect(() => { localStorage.setItem("llm_model", model); }, [model]);
 
-  async function loadRecent() { try { setRecent(await (await fetch("/api/projects")).json()); } catch {} }
+  async function loadRecent() {
+    try {
+      const all = await (await fetch("/api/projects")).json();
+      setRecent((all || []).filter(isViewable));
+    } catch {}
+  }
   function selectProject(p: any) {
     clearInterval(pollTimer.current);
     setProject(p); setWarnings([]); setError(null); setRenderError("");
