@@ -5,7 +5,7 @@ import path from "path";
 import { createProject, saveProject, newScene } from "@/lib/store";
 import { researchTopic, writeScript } from "@/lib/generate";
 import { synthesize } from "@/lib/falcon";
-import { saveSceneAudio, wavDurationSeconds, buildMasterTrack } from "@/lib/audio";
+import { saveSceneAudio, wavDurationSeconds } from "@/lib/audio";
 import { voiceForLocale } from "@/lib/voices";
 import { secondsToFrames } from "@/lib/schema";
 import { ensureSceneWords } from "@/lib/captions";
@@ -54,18 +54,15 @@ export async function POST(req: Request) {
     // 3) VOICE — fatal if it fails
     project.status = "voicing"; await saveProject(project);
     const voice = voiceForLocale(lang, project.voiceId);
-    const wavs: Buffer[] = [];
     for (const [i, scene] of project.scenes.entries()) {
       try {
         const wav = await synthesize(scene.narration, { voiceId: voice, locale: lang });
         scene.audioUrl = await saveSceneAudio(project.id, scene.id, wav);
         scene.durationFrames = secondsToFrames(wavDurationSeconds(wav), project.fps);
-        wavs.push(wav);
       } catch (e: any) {
         throw new StepError("murf", `Falcon failed on scene ${i + 1}/${project.scenes.length}: ${e?.message || e}`);
       }
     }
-    await buildMasterTrack(project.id, wavs);
     console.log(`[studio] ${project.id} ✓ voice`);
 
     // 4) CAPTIONS — non-fatal (estimation fallback)

@@ -1,6 +1,5 @@
 // remotion/text.ts
 // Deterministic font sizing so text always fits 1080x1920 (render-safe, no DOM measuring).
-export const SAFE = { x: 96, top: 120, bottom: 380 }; // bottom reserves the caption zone
 
 export function fitTitle(text = ""): number {
   const n = text.length;

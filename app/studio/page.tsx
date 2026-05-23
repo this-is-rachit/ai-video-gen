@@ -35,7 +35,7 @@ export default function Studio() {
   const [renderError, setRenderError] = useState("");
   const stepTimer = useRef<any>(null);
   const pollTimer = useRef<any>(null);
-  const card = useRef<HTMLDivElement>(null);
+
 
   useEffect(() => {
     setProvider(localStorage.getItem("llm_provider") || "google");
@@ -123,7 +123,7 @@ export default function Studio() {
         <h1 style={ST.h1}>Create a video</h1>
         <p style={ST.sub}>Type a topic. Get a finished, voiced, captioned video — in one click.</p>
 
-        <div ref={card} style={ST.card} className="studio-card">
+        <div style={ST.card} className="studio-card">
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <Field label="LLM provider (BYOK)"><select value={provider} onChange={(e) => setProvider(e.target.value)} style={ST.inp}>{PROVIDERS.map(([id, l]) => <option key={id} value={id}>{l}</option>)}</select></Field>
             <Field label="Model (optional)"><input value={model} onChange={(e) => setModel(e.target.value)} placeholder="default" style={ST.inp} /></Field>

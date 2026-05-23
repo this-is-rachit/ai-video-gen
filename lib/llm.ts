@@ -19,14 +19,6 @@ export const DEFAULT_MODELS: Record<Provider, string> = {
   groq: "llama-3.3-70b-versatile",
 };
 
-export const PROVIDER_LABELS: Record<Provider, string> = {
-  openai: "OpenAI",
-  anthropic: "Anthropic (Claude)",
-  google: "Google (Gemini)",
-  xai: "xAI (Grok)",
-  groq: "Groq (Llama, free tier)",
-};
-
 /**
  * Returns an AI SDK model built from the USER'S key.
  * Same return type for every provider, so the rest of the app

@@ -60,13 +60,6 @@ export async function listProjects(): Promise<Project[]> {
   return out.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
-export async function deleteProject(id: string): Promise<void> {
-  try { await fs.unlink(fileFor(id)); } catch {}
-  try { await fs.rm(path.join(process.cwd(), "public", "audio", id), { recursive: true, force: true }); } catch {}
-  try { await fs.rm(path.join(process.cwd(), "public", "cache", id), { recursive: true, force: true }); } catch {}
-  try { await fs.rm(path.join(process.cwd(), "public", "videos", `${id}.mp4`), { force: true }); } catch {}
-}
-
 export async function clearAllProjects(): Promise<number> {
   await ensureDir();
   const files = await fs.readdir(DATA_DIR);

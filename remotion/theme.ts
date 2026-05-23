@@ -26,7 +26,6 @@ export function dimensions(aspect?: string) {
     ? { width: 1920, height: 1080, fps: 30 }
     : { width: 1080, height: 1920, fps: 30 };
 }
-export const VIDEO = dimensions("portrait");
 
 export interface Palette { bg: string; text: string; muted: string; accent: string; accent2: string; }
 

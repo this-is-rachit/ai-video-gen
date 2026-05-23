@@ -3,7 +3,7 @@ import React from "react";
 import { useCurrentFrame, useVideoConfig } from "remotion";
 import { Word } from "@/lib/schema";
 import { groupIntoLines } from "@/lib/captions";
-import { useTheme, useStyle, withAlpha } from "./theme";
+import { useTheme, useStyle} from "./theme";
 import { useLayout } from "./layout";
 
 export const Captions: React.FC<{ words: Word[] }> = ({ words }) => {
