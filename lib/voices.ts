@@ -37,3 +37,24 @@ export function voiceForLocale(locale: string, fallback = "Matthew"): string {
 
 /** How many languages we actually support (used by the landing-page stat). */
 export const LANGUAGE_COUNT = LANGUAGES.length;
+// Human-readable language name + native script note, used to instruct the LLM
+// clearly (a bare locale code like "hi-IN" is a weak instruction on its own).
+const LANGUAGE_NAMES: Record<string, string> = {
+  "en-US": "English",
+  "en-IN": "English (Indian)",
+  "hi-IN": "Hindi (in Devanagari script)",
+  "es-ES": "Spanish",
+  "fr-FR": "French",
+  "de-DE": "German",
+  "pt-BR": "Brazilian Portuguese",
+  "it-IT": "Italian",
+  "ja-JP": "Japanese (in Japanese script)",
+  "ko-KR": "Korean (in Hangul script)",
+  "zh-CN": "Simplified Chinese (in Chinese characters)",
+  "bn-IN": "Bengali (in Bengali script)",
+};
+
+/** Full language name for a locale (for LLM prompts). Falls back to the code. */
+export function languageName(locale: string): string {
+  return LANGUAGE_NAMES[locale] ?? locale;
+}

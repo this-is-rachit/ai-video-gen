@@ -2,6 +2,7 @@
 import { generateText } from "ai";
 import { getModel, type Provider } from "./llm";
 import { SceneDraftSchema, TEMPLATES, type SceneDraft } from "./schema";
+import { languageName } from "./voices";
 
 export interface GenInput {
   topic: string;
@@ -78,7 +79,9 @@ Return ONLY a JSON object (no markdown, no commentary) of this exact shape:
   (editorial=serious/finance/science, boldpop=fun listicles, cinematic=history/space/nature, tech=technology, retro=culture/music/games, minimal=clean default)
 
 RULES:
-- Narration in locale "${input.language}". 10-14 scenes. Each narration = ONE or TWO short spoken sentences. TOTAL ~280-340 words.
+- LANGUAGE: Write ALL narration AND all on-screen text fields (title, subtitle, bullets, caption, value, quote, attribution, leftLabel, rightLabel) entirely in ${languageName(input.language)}. Do NOT use English unless the chosen language is English. Use the correct native script throughout.
+- DO NOT TRANSLATE the search-query fields: "imageQuery", "bRollQuery", "bgImageQuery", "leftImageQuery", "rightImageQuery" and the "images" array MUST stay in plain ENGLISH keywords (these query an English stock-photo service). Everything the viewer reads/hears = ${languageName(input.language)}; everything used to search images = English.
+- 10-14 scenes. Each narration = ONE or TWO short spoken sentences. TOTAL ~280-340 words.
 - visual.template is one of: ${TEMPLATES.join(", ")}. Vary them; don't repeat one more than ~3 times.
 - KEEP TEXT SHORT so it fits the screen: title <= 6 words, subtitle <= 10 words, each bullet <= 8 words, caption <= 6 words, value <= 4 words (e.g. "13.8B years"), quote <= 25 words.
 - Scene 1 = title_card. Last scene = outro.
