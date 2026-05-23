@@ -8,7 +8,7 @@ import Dock from "@/components/Dock";
 
 const InteractiveField = dynamic(() => import("@/components/InteractiveField"), { ssr: false });
 
-const PROVIDERS = [["google", "Google (Gemini)"], ["openai", "OpenAI"], ["anthropic", "Anthropic"], ["xai", "xAI (Grok)"]];
+const PROVIDERS = [["google", "Google (Gemini)"], ["openai", "OpenAI"], ["anthropic", "Anthropic"], ["xai", "xAI (Grok)"], ["groq", "Groq (Llama, free)"]];
 const LANGS = [["en-US", "English"], ["hi-IN", "Hindi"], ["es-ES", "Spanish"], ["fr-FR", "French"]];
 const STEPS = ["Writing script", "Generating voice", "Aligning captions", "Fetching media", "Finishing"];
 

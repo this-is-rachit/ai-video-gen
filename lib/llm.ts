@@ -3,18 +3,20 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createXai } from "@ai-sdk/xai";
+import { createGroq } from "@ai-sdk/groq";
 import type { LanguageModel } from "ai";
 
-export type Provider = "openai" | "anthropic" | "google" | "xai";
+export type Provider = "openai" | "anthropic" | "google" | "xai" | "groq";
 
 // Sensible defaults. Model names change often — if one errors with
 // "model not found", just pass a current model ID from that provider's
 // docs. The UI lets the user override this field.
 export const DEFAULT_MODELS: Record<Provider, string> = {
-  openai: "gpt-4o",
-  anthropic: "claude-3-5-sonnet-latest",
-  google: "gemini-1.5-pro",
-  xai: "grok-2-latest",
+  openai: "gpt-5.4-mini",
+  anthropic: "claude-sonnet-4-6",
+  google: "gemini-3.5-flash",
+  xai: "grok-4.3",
+  groq: "llama-3.3-70b-versatile",
 };
 
 export const PROVIDER_LABELS: Record<Provider, string> = {
@@ -22,6 +24,7 @@ export const PROVIDER_LABELS: Record<Provider, string> = {
   anthropic: "Anthropic (Claude)",
   google: "Google (Gemini)",
   xai: "xAI (Grok)",
+  groq: "Groq (Llama, free tier)",
 };
 
 /**
@@ -45,6 +48,8 @@ export function getModel(
       return createGoogleGenerativeAI({ apiKey })(model);
     case "xai":
       return createXai({ apiKey })(model);
+    case "groq":
+      return createGroq({ apiKey })(model);
     default:
       throw new Error(`Unknown provider: ${provider}`);
   }
