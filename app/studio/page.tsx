@@ -2,16 +2,16 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { Player } from "@remotion/player";
 import { MainVideo, totalFrames } from "@/remotion/Video";
 import Dock from "@/components/Dock";
+import { useRenderJob } from "@/components/useRenderJob";
 import { LANGUAGES, voicesForLocale, defaultVoiceForLocale } from "@/lib/voices";
 const InteractiveField = dynamic(() => import("@/components/InteractiveField"), { ssr: false });
 const PROVIDERS = [["google", "Google (Gemini)"], ["openai", "OpenAI"], ["anthropic", "Anthropic"], ["xai", "xAI (Grok)"], ["groq", "Groq (Llama, free)"]];
 const LANGS = LANGUAGES.map((l) => [l.locale, l.label] as [string, string]);
 const STEPS = ["Writing script", "Generating voice", "Aligning captions", "Fetching media", "Finishing"];
-// Duration presets → targetSeconds (Step 6 clamps to 30–300). ~1 min and under
-// renders fast; longer videos = more scenes = longer render, so we warn.
 const DURATIONS: { secs: number; label: string; hint: string }[] = [
   { secs: 60, label: "~1 min", hint: "Fastest" },
   { secs: 120, label: "~2 min", hint: "Balanced" },
@@ -37,18 +37,10 @@ export default function Studio() {
   const [error, setError] = useState<{ service: string; msg: string } | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [recent, setRecent] = useState<any[]>([]);
-  const [rendering, setRendering] = useState(false);
-  const [renderPct, setRenderPct] = useState(0);
-  const [renderLabel, setRenderLabel] = useState("");
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [doneQuality, setDoneQuality] = useState<"quick" | "hd" | null>(null);
-  const [renderError, setRenderError] = useState("");
+  const render = useRenderJob();
   const stepTimer = useRef<any>(null);
-  const pollTimer = useRef<any>(null);
   const loaded = useRef(false);
   useEffect(() => {
-    // Load saved creds from the store the user previously chose. Default is
-    // sessionStorage (toggle OFF) so a key does NOT linger on a shared machine.
     const rememberPref = localStorage.getItem("llm_remember") === "1";
     setRemember(rememberPref);
     const store = rememberPref ? localStorage : sessionStorage;
@@ -58,11 +50,9 @@ export default function Studio() {
     loaded.current = true;
     loadRecent();
     fetch("/api/warmup").catch(() => { });
-    return () => { clearInterval(pollTimer.current); clearInterval(stepTimer.current); };
+    return () => { render.stop(); clearInterval(stepTimer.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  // Persist creds to the chosen store; clear the other store so the key never
-  // lingers where it shouldn't. Guarded by `loaded` so the first render can't
-  // overwrite saved values with defaults.
   useEffect(() => {
     if (!loaded.current) return;
     localStorage.setItem("llm_remember", remember ? "1" : "0");
@@ -82,11 +72,9 @@ export default function Studio() {
     } catch { }
   }
   function selectProject(p: any) {
-    clearInterval(pollTimer.current);
-    setProject(p); setWarnings([]); setError(null); setRenderError("");
-    setVideoUrl(p?.videoUrl || null); setRendering(false); setRenderPct(0);
-    // if this project was already rendered, trust its stored quality
-    setDoneQuality(p?.videoUrl ? (p?.renderQuality ?? null) : null);
+    render.stop();
+    setProject(p); setWarnings([]); setError(null);
+    render.reset(p?.videoUrl || null, p?.renderQuality ?? null);
   }
   async function generate() {
     setLoading(true); setError(null); setWarnings([]); selectProject(null); setStep(0);
@@ -101,38 +89,9 @@ export default function Studio() {
       const text = await res.text();
       let data: any; try { data = JSON.parse(text); } catch { throw new Error(`Server returned non-JSON: ${text.slice(0, 80)}`); }
       if (!res.ok) { console.error(`[video-gen] ${String(data.service).toUpperCase()} error:`, data.error); setError({ service: data.service || "server", msg: data.error || "Failed" }); }
-      else { (data.warnings || []).forEach((w: string) => console.warn("[video-gen]", w)); setWarnings(data.warnings || []); selectProject(data); loadRecent(); renderVideo(data.id, quality); }
+      else { (data.warnings || []).forEach((w: string) => console.warn("[video-gen]", w)); setWarnings(data.warnings || []); selectProject(data); loadRecent(); render.startRender(data.id, quality); }
     } catch (e: any) { console.error("[video-gen] network error:", e); setError({ service: "network", msg: e?.message || "Network error" }); }
     finally { clearInterval(stepTimer.current); setLoading(false); }
-  }
-  async function renderVideo(projectId?: string, q: "quick" | "hd" = quality) {
-    const id = projectId || project?.id; if (!id) return;
-    setRenderError(""); setRendering(true); setRenderPct(0); setVideoUrl(null); setDoneQuality(null); setRenderLabel(q === "hd" ? "HD" : "Quick");
-    try {
-      const res = await fetch(`/api/projects/${id}/render`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ quality: q }) });
-      const text = await res.text(); let data: any; try { data = JSON.parse(text); } catch { throw new Error(`Server returned non-JSON: ${text.slice(0, 80)}`); }
-      if (!res.ok) { setRenderError(data.error || "Render failed to start"); setRendering(false); return; }
-      clearInterval(pollTimer.current); let polls = 0; let failStreak = 0;
-      pollTimer.current = setInterval(async () => {
-        polls++; if (polls > 360) { clearInterval(pollTimer.current); setRendering(false); setRenderError("Render timed out — check terminal."); return; }
-        try {
-          const j = await (await fetch(`/api/projects/${id}/render`)).json();
-          failStreak = 0; // a clean response resets the tolerance window
-          if (j.status === "rendering") setRenderPct(j.progress || 0);
-          else if (j.status === "done") { clearInterval(pollTimer.current); setRendering(false); setRenderPct(1); setVideoUrl(j.videoUrl); setDoneQuality((j.quality as "quick" | "hd") ?? q); }
-          else if (j.status === "error") { clearInterval(pollTimer.current); setRendering(false); setRenderError(j.error || "Render failed"); }
-          else if (j.status === "idle") {
-            // job map was wiped (dev recompile) AND disk shows no active render.
-            // Tolerate a couple in case the file write is mid-flight, then stop.
-            if (++failStreak >= 5) { clearInterval(pollTimer.current); setRendering(false); setRenderError("Render job not found — retry."); }
-          }
-        } catch {
-          // transient network blip — DON'T kill a healthy render. The render
-          // route reconstructs status from disk, so we just retry a few times.
-          if (++failStreak >= 5) { clearInterval(pollTimer.current); setRendering(false); setRenderError("Lost connection to render job — retry."); }
-        }
-      }, 2500);
-    } catch (e: any) { setRendering(false); setRenderError(e?.message || "Network error"); }
   }
   async function clearAll() {
     if (!confirm("Delete ALL projects, audio, cached assets and rendered videos?")) return;
@@ -142,14 +101,14 @@ export default function Studio() {
   async function openRecent(id: string) { const list = await (await fetch("/api/projects")).json(); const p = list.find((x: any) => x.id === id); if (p) selectProject(p); }
   const ready = project && project.scenes?.length && project.scenes.every((s: any) => s.durationFrames);
   const landscape = (project?.aspect ?? aspect) === "landscape";
-  const playerStyle: React.CSSProperties = landscape ? { width: "100%", maxWidth: 480, aspectRatio: "16 / 9" } : { width: "100%", maxWidth: 290, aspectRatio: "9 / 16" };
+  const playerStyle: React.CSSProperties = landscape ? { width: "100%", maxWidth: 500, aspectRatio: "16 / 9" } : { width: "100%", maxWidth: 320, aspectRatio: "9 / 16" };
   const softError = !!error && (error.service === "ratelimit" || /budget/i.test(error.msg));
   const errorTitle = error
     ? error.service === "ratelimit" ? "⏳ Too many requests"
       : /budget/i.test(error.msg) ? "💛 Voice budget reached"
       : `❌ ${error.service.toUpperCase()} failed`
     : "";
-  const softRenderError = /too many|wait about/i.test(renderError);
+  const softRenderError = /too many|wait about/i.test(render.renderError);
   return (
     <div style={{ minHeight: "100vh", position: "relative", overflow: "hidden" }}>
       <style>{`
@@ -157,9 +116,9 @@ export default function Studio() {
           @keyframes cardIn { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
           .field-fade { animation: fieldIn .8s ease both; }
           @keyframes fieldIn { from { opacity: 0; } to { opacity: 1; } }
-          .studio-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,440px); gap: 28px; align-items: start; }
+          .studio-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(380px,520px); gap: 28px; align-items: start; }
           .studio-preview { position: sticky; top: 110px; }
-          @media (max-width: 900px) {
+          @media (max-width: 920px) {
             .studio-grid { grid-template-columns: 1fr; }
             .studio-preview { position: static; }
           }
@@ -167,7 +126,7 @@ export default function Studio() {
       <div className="field-fade" style={{ position: "fixed", inset: 0, zIndex: 0 }}><InteractiveField density={0.5} dotSize={0.07} opacity={0.4} radius={1.3} /></div>
       <div style={{ position: "fixed", inset: 0, zIndex: 0, background: "radial-gradient(ellipse 60% 50% at 50% 30%, rgba(245,239,227,0.2), rgba(245,239,227,0.8))", pointerEvents: "none" }} />
       <Dock links={[{ label: "How it works", href: "/#how" }]} cta={{ label: "← Home", href: "/" }} />
-      <div style={{ position: "relative", zIndex: 2, maxWidth: 1180, margin: "0 auto", padding: "150px 24px 80px" }}>
+      <div style={{ position: "relative", zIndex: 2, maxWidth: 1240, margin: "0 auto", padding: "150px 24px 80px" }}>
         <p style={ST.kicker}>Studio</p>
         <h1 style={ST.h1}>Create a video</h1>
         <p style={ST.sub}>Type a topic. Get a finished, voiced, captioned video — in one click.</p>
@@ -225,38 +184,39 @@ export default function Studio() {
               <button onClick={clearAll} style={ST.clear}>🗑</button>
             </div>
           </div>
-          {/* RIGHT — sticky live preview */}
+          {/* RIGHT — sticky preview */}
           <div className="studio-preview">
             <div style={ST.previewPanel}>
               {ready ? (
-                <div style={{ display: "grid", gap: 14, justifyItems: "center" }}>
+                <div style={{ display: "grid", gap: 14, justifyItems: "center", width: "100%" }}>
                   <Player component={MainVideo} acknowledgeRemotionLicense inputProps={{ project }} durationInFrames={totalFrames(project)} fps={project.fps}
                     compositionWidth={landscape ? 1920 : 1080} compositionHeight={landscape ? 1080 : 1920} controls
                     style={{ ...playerStyle, borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 60px rgba(120,90,60,0.25)" }} />
-                  <div style={{ width: "100%", display: "grid", gap: 8 }}>
-                    {rendering ? (
-                      <div><div style={{ fontSize: 14, marginBottom: 6 }}>{renderPct > 0 ? `Rendering ${renderLabel}… ${Math.round(renderPct * 100)}%` : "Preparing…"}</div><div style={ST.barOuter}><div style={{ ...ST.barInner, width: `${Math.max(4, renderPct * 100)}%` }} /></div></div>
-                    ) : videoUrl ? (
+                  <div style={{ width: "100%", maxWidth: landscape ? 500 : 320, display: "grid", gap: 8 }}>
+                    {render.rendering ? (
+                      <div><div style={{ fontSize: 14, marginBottom: 6 }}>{render.renderPct > 0 ? `Rendering ${render.renderLabel}… ${Math.round(render.renderPct * 100)}%` : "Preparing…"}</div><div style={ST.barOuter}><div style={{ ...ST.barInner, width: `${Math.max(4, render.renderPct * 100)}%` }} /></div></div>
+                    ) : render.videoUrl ? (
                       <>
-                        <div style={ST.qualityTag}>{doneQuality === "hd" ? "💎 HD video ready" : "⚡ Quick video ready"}</div>
-                        <a href={videoUrl} download={`${project.id}.mp4`} style={{ ...ST.download, textAlign: "center" }}>⬇ Download MP4</a>
-                        {doneQuality === "hd" ? (
+                        <div style={ST.qualityTag}>{render.doneQuality === "hd" ? "💎 HD video ready" : "⚡ Quick video ready"}</div>
+                        <a href={render.videoUrl} download={`${project.id}.mp4`} style={{ ...ST.download, textAlign: "center" }}>⬇ Download MP4</a>
+                        {render.doneQuality === "hd" ? (
                           <button disabled style={{ ...ST.secondary, ...ST.secondaryDone }}>✓ Already top quality (HD)</button>
                         ) : (
-                          <button onClick={() => renderVideo(project.id, "hd")} style={ST.secondary}>💎 Re-render in HD</button>
+                          <button onClick={() => render.startRender(project.id, "hd")} style={ST.secondary}>💎 Re-render in HD</button>
                         )}
                       </>
                     ) : (
-                      <button onClick={() => renderVideo(project.id, quality)} style={ST.download}>🎬 Render &amp; download</button>
+                      <button onClick={() => render.startRender(project.id, quality)} style={ST.download}>🎬 Render &amp; download</button>
                     )}
-                    {renderError && <div style={softRenderError ? ST.softNotice : ST.error}>{softRenderError ? "⏳ " : "❌ "}{renderError}</div>}
+                    {render.renderError && <div style={softRenderError ? ST.softNotice : ST.error}>{softRenderError ? "⏳ " : "❌ "}{render.renderError}</div>}
+                    <Link href={`/studio/edit/${project.id}`} style={{ ...ST.editLink, textAlign: "center" }}>✏️ Edit this video</Link>
                   </div>
                 </div>
               ) : (
                 <div style={ST.previewEmpty}>
-                  <div style={{ fontSize: 30, opacity: 0.5 }}>🎬</div>
-                  <p style={{ fontWeight: 600, marginTop: 10 }}>Your preview appears here</p>
-                  <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 6, lineHeight: 1.5 }}>Fill in a topic and hit Generate. The video plays here the moment it’s ready — no waiting for the download.</p>
+                  <div style={{ fontSize: 34, opacity: 0.5 }}>🎬</div>
+                  <p style={{ fontWeight: 700, marginTop: 12, fontSize: 16 }}>Your preview appears here</p>
+                  <p style={{ fontSize: 13.5, color: "var(--muted)", marginTop: 8, lineHeight: 1.55 }}>Fill in a topic and hit Generate. The video plays here the moment it’s ready — then you can fine-tune every scene in the editor.</p>
                 </div>
               )}
             </div>
@@ -287,12 +247,13 @@ const ST: Record<string, React.CSSProperties> = {
   softNotice: { background: "#fbf1dc", border: "1px solid #e8c98a", color: "#8a5a12", borderRadius: 12, padding: 14, fontSize: 13 },
   warn: { background: "#f7eccf", border: "1px solid #ddc079", color: "#7a5a18", borderRadius: 12, padding: 12, fontSize: 13, display: "grid", gap: 4 },
   clear: { padding: "12px 16px", background: "#faf6ee", color: "var(--accent)", border: "1.5px solid #e0d4bd", borderRadius: 12, cursor: "pointer" },
-  previewPanel: { background: "rgba(255,255,255,0.7)", backdropFilter: "blur(10px)", border: "1px solid #e0d4bd", borderRadius: 24, padding: 22, minHeight: 360, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 30px 80px rgba(120,90,60,0.12)" },
-  previewEmpty: { textAlign: "center", maxWidth: 280, padding: "30px 10px" },
+  previewPanel: { background: "rgba(255,255,255,0.72)", backdropFilter: "blur(10px)", border: "1px solid #e0d4bd", borderRadius: 24, padding: "26px 22px", minHeight: 420, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 30px 80px rgba(120,90,60,0.12)" },
+  previewEmpty: { textAlign: "center", maxWidth: 300, padding: "30px 10px" },
   qualityTag: { textAlign: "center", fontSize: 13, fontWeight: 600, color: "var(--accent-2)" },
   download: { padding: "13px 16px", background: "var(--accent-2)", color: "#fff", border: "none", borderRadius: 12, cursor: "pointer", fontWeight: 700, textDecoration: "none", display: "block" },
   secondary: { padding: "11px 16px", background: "#faf6ee", color: "var(--ink)", border: "1.5px solid #e0d4bd", borderRadius: 12, cursor: "pointer", fontWeight: 600 },
   secondaryDone: { opacity: 0.7, cursor: "default", color: "var(--muted)" },
+  editLink: { padding: "12px 16px", background: "transparent", color: "var(--accent)", border: "1.5px solid var(--accent)", borderRadius: 12, cursor: "pointer", fontWeight: 700, textDecoration: "none", display: "block" },
   barOuter: { height: 10, background: "var(--bg-2)", borderRadius: 99, overflow: "hidden" },
   barInner: { height: "100%", background: "var(--accent)", transition: "width .4s" },
 };

@@ -56,4 +56,5 @@ function envInt(name: string, fallback: number): number {
 export const LIMITS = {
   studio: { windowMs: envInt("RL_STUDIO_WINDOW_MS", 5 * 60_000), max: envInt("RL_STUDIO_MAX", 8) },
   render: { windowMs: envInt("RL_RENDER_WINDOW_MS", 5 * 60_000), max: envInt("RL_RENDER_MAX", 15) },
+  edit:   { windowMs: envInt("RL_EDIT_WINDOW_MS", 5 * 60_000), max: envInt("RL_EDIT_MAX", 30) },
 };
