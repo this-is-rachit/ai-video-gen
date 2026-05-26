@@ -167,6 +167,7 @@ Reelify pulls topic-matched, royalty-free music from **Jamendo**. For an offline
 - **Storage is single-instance.** Projects are JSON files on disk; on an ephemeral host (like Railway's default filesystem) they live for the container's lifetime. Fine for a demo; add a persistent volume for long-term use.
 - **One render at a time.** HD renders are memory-hungry, so renders run sequentially in a queue rather than in parallel.
 - **Rendering is CPU-bound.** A ~5-minute HD video takes meaningfully longer than a quick ~1-minute draft.
+- **Known advisory.** `npm audit` reports one moderate issue in a transitive `postcss` dependency bundled by Next.js. It is not reachable in this app (no user-controlled CSS is processed), and the only automatic fix downgrades Next.js by several major versions — so it is intentionally left as-is pending an upstream Next.js patch.
 
 ---
 
@@ -178,4 +179,4 @@ Reelify ships with a `Dockerfile` (Node 22, Chrome Headless Shell libraries, pro
 
 ## 📄 License
 
-See [`LICENSE`](./LICENSE).
+Released under the [MIT License](./LICENSE).
