@@ -423,7 +423,7 @@ export default function EditPage() {
                       <div style={{ width: "100%", maxWidth: landscape ? 540 : 360, display: "grid", gap: 8 }}>
                         {dirty && <div style={ST.dirtyHint}>Save your changes to refresh narration & captions before rendering.</div>}
                         {render.rendering ? (
-                          <div><div style={{ fontSize: 14, marginBottom: 6 }}>{render.renderPct > 0 ? `Rendering ${render.renderLabel}… ${Math.round(render.renderPct * 100)}%` : "Preparing…"}</div><div style={ST.barOuter}><div style={{ ...ST.barInner, width: `${Math.max(4, render.renderPct * 100)}%` }} /></div></div>
+                          <div><div style={{ fontSize: 14, marginBottom: 6 }}>{render.queuePos > 0 ? `In queue — ${render.queuePos} render${render.queuePos > 1 ? "s" : ""} ahead…` : render.renderPct > 0 ? `Rendering ${render.renderLabel}… ${Math.round(render.renderPct * 100)}%` : "Preparing…"}</div><div style={ST.barOuter}><div style={{ ...ST.barInner, width: `${Math.max(4, render.renderPct * 100)}%` }} /></div></div>
                         ) : render.videoUrl ? (
                           <>
                             <div style={ST.qualityTag}>{render.doneQuality === "hd" ? "💎 HD video ready" : "⚡ Quick video ready"}</div>

@@ -194,7 +194,7 @@ export default function Studio() {
                     style={{ ...playerStyle, borderRadius: 16, overflow: "hidden", boxShadow: "0 24px 60px rgba(120,90,60,0.25)" }} />
                   <div style={{ width: "100%", maxWidth: landscape ? 500 : 320, display: "grid", gap: 8 }}>
                     {render.rendering ? (
-                      <div><div style={{ fontSize: 14, marginBottom: 6 }}>{render.renderPct > 0 ? `Rendering ${render.renderLabel}… ${Math.round(render.renderPct * 100)}%` : "Preparing…"}</div><div style={ST.barOuter}><div style={{ ...ST.barInner, width: `${Math.max(4, render.renderPct * 100)}%` }} /></div></div>
+                      <div><div style={{ fontSize: 14, marginBottom: 6 }}>{render.queuePos > 0 ? `In queue — ${render.queuePos} render${render.queuePos > 1 ? "s" : ""} ahead…` : render.renderPct > 0 ? `Rendering ${render.renderLabel}… ${Math.round(render.renderPct * 100)}%` : "Preparing…"}</div><div style={ST.barOuter}><div style={{ ...ST.barInner, width: `${Math.max(4, render.renderPct * 100)}%` }} /></div></div>
                     ) : render.videoUrl ? (
                       <>
                         <div style={ST.qualityTag}>{render.doneQuality === "hd" ? "💎 HD video ready" : "⚡ Quick video ready"}</div>

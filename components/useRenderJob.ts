@@ -12,6 +12,7 @@ export function useRenderJob() {
   const [rendering, setRendering] = useState(false);
   const [renderPct, setRenderPct] = useState(0);
   const [renderLabel, setRenderLabel] = useState("");
+  const [queuePos, setQueuePos] = useState(0);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [doneQuality, setDoneQuality] = useState<Quality | null>(null);
   const [renderError, setRenderError] = useState("");
@@ -28,7 +29,7 @@ export function useRenderJob() {
 
   async function startRender(id: string, q: Quality) {
     if (!id) return;
-    setRenderError(""); setRendering(true); setRenderPct(0); setVideoUrl(null); setDoneQuality(null); setRenderLabel(q === "hd" ? "HD" : "Quick");
+    setRenderError(""); setRendering(true); setRenderPct(0); setQueuePos(0); setVideoUrl(null); setDoneQuality(null); setRenderLabel(q === "hd" ? "HD" : "Quick");
     try {
       const res = await fetch(`/api/projects/${id}/render`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ quality: q }) });
       const text = await res.text(); let data: any; try { data = JSON.parse(text); } catch { throw new Error(`Server returned non-JSON: ${text.slice(0, 80)}`); }
@@ -39,7 +40,8 @@ export function useRenderJob() {
         try {
           const j = await (await fetch(`/api/projects/${id}/render`)).json();
           failStreak = 0;
-          if (j.status === "rendering") setRenderPct(j.progress || 0);
+          if (j.status === "queued") { setQueuePos(j.queuePosition || 0); setRenderPct(0); }
+          else if (j.status === "rendering") { setQueuePos(0); setRenderPct(j.progress || 0); }
           else if (j.status === "done") { clearInterval(pollTimer.current); setRendering(false); setRenderPct(1); setVideoUrl(j.videoUrl); setDoneQuality((j.quality as Quality) ?? q); }
           else if (j.status === "error") { clearInterval(pollTimer.current); setRendering(false); setRenderError(j.error || "Render failed"); }
           else if (j.status === "idle") { if (++failStreak >= 5) { clearInterval(pollTimer.current); setRendering(false); setRenderError("Render job not found — retry."); } }
@@ -48,5 +50,5 @@ export function useRenderJob() {
     } catch (e: any) { setRendering(false); setRenderError(e?.message || "Network error"); }
   }
 
-  return { rendering, renderPct, renderLabel, videoUrl, doneQuality, renderError, startRender, reset, stop, setVideoUrl };
+  return { rendering, renderPct, renderLabel, queuePos, videoUrl, doneQuality, renderError, startRender, reset, stop, setVideoUrl };
 }

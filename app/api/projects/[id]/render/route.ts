@@ -39,7 +39,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
     // 1) In-memory job is the freshest source while it exists.
     const job = getJob(id);
-    if (job) return NextResponse.json(job);
+    if (job) {
+      if (job.status === "queued") {
+        const { queuePositionOf } = await import("@/lib/render");
+        return NextResponse.json({ ...job, queuePosition: queuePositionOf(id) });
+      }
+      return NextResponse.json(job);
+    }
 
     // 2) Fallback: reconstruct status from the persisted project file. This is
     //    what lets the UI reconnect after a dev recompile wipes the job map —

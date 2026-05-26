@@ -23,6 +23,13 @@ const PUBLIC_DIR = path.join(process.cwd(), "public");
 // and returns immediately, exactly as the API route expects.
 let activeRender = false;
 const renderQueue: Array<() => Promise<void>> = [];
+const queuedIds: string[] = []; // ids waiting, in order, for position reporting
+
+/** How many renders are ahead of `id` in the queue (0 = next up / running). */
+export function queuePositionOf(id: string): number {
+  const i = queuedIds.indexOf(id);
+  return i < 0 ? 0 : i;
+}
 
 async function pumpQueue() {
   if (activeRender) return;
@@ -77,11 +84,14 @@ export async function startRender(id: string, quality: Quality = "quick"): Promi
   await saveProgress(id, { status: "rendering", renderProgress: 0, renderQuality: quality, videoUrl: null });
 
   // Enqueue the actual render work; it runs when no other render is active.
+  queuedIds.push(id);
   renderQueue.push(() => runRender(id, quality));
   void pumpQueue();
 }
 
 async function runRender(id: string, quality: Quality): Promise<void> {
+  const qi = queuedIds.indexOf(id);
+  if (qi >= 0) queuedIds.splice(qi, 1); // it's running now, no longer waiting
   jobs.set(id, { status: "rendering", progress: 0, quality });
   try {
     const project = await getProject(id);
