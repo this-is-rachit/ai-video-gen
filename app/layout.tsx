@@ -2,6 +2,10 @@
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
+import { checkEnvOnce } from "@/lib/env";
+
+// Log a clear warning at server startup if required API keys are missing.
+checkEnvOnce();
 
 const poppins = Poppins({
   subsets: ["latin"],
