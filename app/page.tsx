@@ -8,7 +8,6 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import Dock from "@/components/Dock";
 import { LANGUAGE_COUNT } from "@/lib/voices";
 const InteractiveField = dynamic(() => import("@/components/InteractiveField"), { ssr: false });
-
 const MARQUEE_A = ["Black holes", "How GPS works", "The French Revolution", "Compound interest", "Photosynthesis", "Why the sky is blue"];
 const MARQUEE_B = ["Quantum computing", "The Roman Empire", "How vaccines work", "Ocean currents", "The stock market", "How memory works"];
 const STEPS = [
@@ -16,11 +15,33 @@ const STEPS = [
   { n: "02", t: "We produce it", d: "Falcon narrates, captions sync to every word, and each beat is matched to visuals, motion and a soundtrack." },
   { n: "03", t: "Export anywhere", d: "Preview instantly, then download an MP4 in 9:16 for Shorts and Reels or 16:9 for YouTube. No timeline, no editing." },
 ];
+// Thin-stroke line icons (inherit color from the wrapper via currentColor).
+const ICON = { width: 30, height: 30, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.6, strokeLinecap: "round", strokeLinejoin: "round" } as const;
 const FEATURES = [
-  { i: "✍️", t: "Researched scripts", d: "Bring your own LLM key. We turn a topic into punchy, accurate narration." },
-  { i: "🎙️", t: "Real voice + captions", d: `Falcon narration with word-synced captions across ${LANGUAGE_COUNT} languages.` },
-  { i: "🎬", t: "Cinematic visuals", d: "Animated scenes, stock photos & b-roll, and a palette that shifts per topic." },
-  { i: "📐", t: "Both formats", d: "Portrait and landscape from the same project — one click each." },
+  {
+    icon: (
+      <svg {...ICON}><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+    ),
+    t: "Researched scripts", d: "Bring your own LLM key. We turn a topic into punchy, accurate narration.",
+  },
+  {
+    icon: (
+      <svg {...ICON}><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 11a7 7 0 0 0 14 0" /><path d="M12 18v3" /><path d="M8 21h8" /></svg>
+    ),
+    t: "Real voice + captions", d: `Falcon narration with word-synced captions across ${LANGUAGE_COUNT} languages.`,
+  },
+  {
+    icon: (
+      <svg {...ICON}><path d="M3 7l2.5-3.5L9 7" /><path d="M9 7l2.5-3.5L15 7" /><path d="M15 7l2.5-3.5L21 7" /><rect x="3" y="7" width="18" height="13" rx="2" /></svg>
+    ),
+    t: "Cinematic visuals", d: "Animated scenes, stock photos & b-roll, and a palette that shifts per topic.",
+  },
+  {
+    icon: (
+      <svg {...ICON}><rect x="2.5" y="6.5" width="11" height="11" rx="1.6" /><rect x="15" y="3.5" width="6.5" height="17" rx="1.6" /></svg>
+    ),
+    t: "Both formats", d: "Portrait and landscape from the same project — one click each.",
+  },
 ];
 const STATS = [{ v: LANGUAGE_COUNT, s: "", l: "Languages" }, { v: 10, s: "", l: "Scene templates" }, { v: 6, s: "", l: "Style packs" }, { v: 1, s: "-click", l: "To a finished video" }];
 export default function Landing() {
@@ -61,12 +82,10 @@ export default function Landing() {
     }, root);
     return () => ctx.revert();
   }, []);
-
   return (
     <div ref={root}>
       <div ref={bar} style={S.progress} />
       <Dock links={[{ label: "How it works", href: "#how" }, { label: "Features", href: "#features" }]} cta={{ label: "Open Studio →", href: "/studio" }} />
-
       <main>
         <section style={S.hero}>
           <InteractiveField density={0.34} dotSize={0.1} opacity={0.9} radius={1.6} />
@@ -82,7 +101,6 @@ export default function Landing() {
           </div>
           <div className="hero-stagger" style={S.scrollCue}>Scroll ↓</div>
         </section>
-
        <section style={S.marqueeWrap}>
           <div style={S.marqueeMask}>
             <div ref={rowARef} style={{ display: "flex", gap: 14, width: "max-content" }}>
@@ -93,7 +111,6 @@ export default function Landing() {
             </div>
           </div>
         </section>
-
         <section id="how" style={{ ...S.section, background: "var(--paper)" }}>
           <p className="reveal" style={S.kicker}>How it works</p>
           <h2 className="reveal" style={S.h2}>Three steps. Zero editing.</h2>
@@ -106,21 +123,19 @@ export default function Landing() {
             ))}
           </div>
         </section>
-
         <section id="features" style={{ ...S.section }}>
           <p className="reveal" style={S.kicker}>What you get</p>
           <h2 className="reveal" style={S.h2}>Everything, in one click.</h2>
           <div style={S.grid}>
             {FEATURES.map((f) => (
               <div key={f.t} className="reveal feat" style={S.card}>
-                <div style={{ fontSize: 30 }}>{f.i}</div>
+                <div style={{ color: "var(--accent)", display: "inline-flex" }}>{f.icon}</div>
                 <h3 style={{ fontSize: 19, fontWeight: 700, margin: "16px 0 8px" }}>{f.t}</h3>
                 <p style={{ color: "var(--muted)", lineHeight: 1.6 }}>{f.d}</p>
               </div>
             ))}
           </div>
         </section>
-
         <section style={{ ...S.section, background: "var(--paper)" }}>
           <p className="reveal" style={S.kicker}>One project, two formats</p>
           <h2 className="reveal" style={S.h2}>Built for every feed.</h2>
@@ -129,7 +144,6 @@ export default function Landing() {
             <div style={S.framePortrait}><span style={S.frameLabel}>9:16 · Shorts</span></div>
           </div>
         </section>
-
         <section style={{ ...S.section, paddingBottom: 40 }}>
           <div style={S.statRow}>
             {STATS.map((st) => (
@@ -140,24 +154,20 @@ export default function Landing() {
             ))}
           </div>
         </section>
-
         <section className="reveal" style={S.ctaBand}>
           <h2 style={{ fontSize: "clamp(30px,4.5vw,52px)", fontWeight: 800, letterSpacing: "-0.02em", color: "#fff" }}>Make your first video now.</h2>
           <p style={{ color: "rgba(255,255,255,0.85)", margin: "14px 0 30px" }}>Bring your own AI key. Free to try.</p>
           <Link href="/studio" style={S.ctaBtn}>Open Studio →</Link>
         </section>
       </main>
-
       <footer style={S.footer}>
         <span style={{ fontWeight: 800 }}>Reelify<span style={{ color: "var(--accent)" }}>.</span></span>
         <span style={{ color: "var(--muted)", fontSize: 13 }}>Built for the Murf Buildathon</span>
       </footer>
-
       <style>{`.feat{transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease;} .feat:hover{transform:translateY(-6px); box-shadow:0 18px 50px rgba(120,90,60,.14); border-color:var(--accent);}`}</style>
     </div>
   );
 }
-
 const S: Record<string, React.CSSProperties> = {
   progress: { position: "fixed", top: 0, left: 0, height: 3, width: "100%", background: "linear-gradient(90deg,#e5532b,#e8923b)", transformOrigin: "left", transform: "scaleX(0)", zIndex: 60 },
   hero: { position: "relative", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", overflow: "hidden", paddingTop: 120 },
@@ -169,7 +179,6 @@ const S: Record<string, React.CSSProperties> = {
   primary: { background: "var(--accent)", color: "#fff", fontWeight: 700, padding: "15px 28px", borderRadius: 99, fontSize: 16, boxShadow: "0 12px 36px rgba(229,83,43,0.32)" },
   ghost: { color: "var(--ink)", fontWeight: 600, padding: "15px 26px", borderRadius: 99, border: "1px solid var(--line)", background: "var(--paper)", fontSize: 16 },
   scrollCue: { position: "absolute", bottom: 26, zIndex: 2, color: "var(--muted)", fontSize: 13, letterSpacing: 1 },
-
   marqueeWrap: { padding: "26px 0", background: "var(--bg-2)", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)" },
   marqueeMask: { WebkitMaskImage: "linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)", maskImage: "linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)", overflow: "hidden" },
   chip: { padding: "11px 20px", border: "1px solid var(--line)", borderRadius: 99, color: "var(--ink)", fontSize: 15, whiteSpace: "nowrap", background: "var(--paper)" },
@@ -177,21 +186,16 @@ const S: Record<string, React.CSSProperties> = {
   section: { maxWidth: 1040, margin: "0 auto", padding: "104px 24px", boxSizing: "content-box" },
   kicker: { color: "var(--accent)", fontWeight: 700, fontSize: 13, letterSpacing: 2, textTransform: "uppercase", textAlign: "center" },
   h2: { fontSize: "clamp(30px,4.4vw,50px)", fontWeight: 800, textAlign: "center", margin: "12px 0 0", letterSpacing: "-0.025em", color: "var(--ink)" },
-
   step: { display: "flex", gap: 28, alignItems: "flex-start", padding: "28px 30px", background: "var(--paper)", border: "1px solid var(--line)", borderRadius: 22, boxShadow: "0 6px 22px rgba(120,90,60,0.05)" },
   stepNum: { fontSize: 42, fontWeight: 800, color: "transparent", WebkitTextStroke: "1.5px #e5532b", lineHeight: 1, flexShrink: 0 } as React.CSSProperties,
-
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(226px,1fr))", gap: 18, marginTop: 52 },
   card: { background: "var(--paper)", border: "1px solid var(--line)", borderRadius: 20, padding: 26 },
-
   formats: { display: "flex", gap: 30, justifyContent: "center", alignItems: "center", marginTop: 54, flexWrap: "wrap" },
   frameLandscape: { width: 340, height: 191, borderRadius: 16, border: "1px solid var(--line)", background: "linear-gradient(135deg,#fff,#f0e7d6)", position: "relative", boxShadow: "0 20px 50px rgba(120,90,60,0.15)" },
   framePortrait: { width: 150, height: 267, borderRadius: 16, border: "1px solid var(--line)", background: "linear-gradient(135deg,#fff,#f6e3d8)", position: "relative", boxShadow: "0 20px 50px rgba(120,90,60,0.15)" },
   frameLabel: { position: "absolute", bottom: 12, left: 14, fontSize: 12, color: "var(--muted)", fontWeight: 600 },
-
   statRow: { display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, padding: "56px 30px", background: "var(--paper)", border: "1px solid var(--line)", borderRadius: 24, boxShadow: "0 10px 36px rgba(120,90,60,0.06)" },
   statNum: { fontSize: "clamp(34px,5vw,56px)", fontWeight: 800, background: "linear-gradient(100deg,#e5532b,#e8923b)", WebkitBackgroundClip: "text", backgroundClip: "text", color: "transparent", letterSpacing: "-0.02em" },
-
   ctaBand: { textAlign: "center", padding: "110px 24px", margin: "0 24px 24px", borderRadius: 30, background: "linear-gradient(120deg,#e5532b,#e8923b)", boxShadow: "0 30px 80px rgba(229,83,43,0.28)" },
   ctaBtn: { background: "#fff", color: "var(--ink)", fontWeight: 700, padding: "15px 28px", borderRadius: 99, fontSize: 16 },
   footer: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "30px", borderTop: "1px solid var(--line)" },
