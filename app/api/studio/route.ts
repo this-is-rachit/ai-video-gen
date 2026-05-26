@@ -14,6 +14,7 @@ import { searchPexelsImages, searchPexelsVideos } from "@/lib/pexels";
 import type { Provider } from "@/lib/llm";
 import { pickMusic } from "@/lib/music";
 import { rateLimit, clientIp, LIMITS } from "@/lib/ratelimit";
+import { estimateTotalChars, estimateChars, canAfford, recordUsage } from "@/lib/usage";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 class StepError extends Error {
@@ -54,11 +55,22 @@ export async function POST(req: Request) {
     await saveProject(project);
     console.log(`[studio] ${project.id} ✓ script (${project.scenes.length} scenes)`);
     // 3) VOICE — fatal if it fails
+    // Budget pre-check: refuse the WHOLE script up front rather than spending
+    // half the credits then stopping. Murf chars are one-time and non-refillable.
+    const needed = estimateTotalChars(project.scenes.map((s: any) => s.narration));
+    const afford = await canAfford(needed);
+    if (!afford.ok) {
+      throw new StepError(
+        "murf",
+        `This script needs ~${needed.toLocaleString()} voice characters but only ${afford.remaining.toLocaleString()} of the ${afford.budget.toLocaleString()} Murf budget remain. Try a shorter video or a shorter topic.`
+      );
+    }
     project.status = "voicing"; await saveProject(project);
     const voice = voiceForLocale(lang, project.voiceId);
     for (const [i, scene] of project.scenes.entries()) {
       try {
         const wav = await synthesize(scene.narration, { voiceId: voice, locale: lang });
+        await recordUsage(estimateChars(scene.narration));
         scene.audioUrl = await saveSceneAudio(project.id, scene.id, wav);
         scene.durationFrames = secondsToFrames(wavDurationSeconds(wav), project.fps);
       } catch (e: any) {
