@@ -1,0 +1,28 @@
+# deps + build output — rebuilt clean inside the image (also forces Chrome
+# Headless Shell to install into the image's own node_modules)
+node_modules
+.next
+out
+build
+
+# secrets — env vars are set in Railway's dashboard, never baked into the image
+.env
+.env.local
+.env*.local
+
+# local runtime data + generated media (regenerated at runtime; keep context small)
+data
+public/audio
+public/cache
+public/videos
+public/uploads
+public/music
+
+# vcs + editor + os cruft
+.git
+.gitignore
+*.md
+.vscode
+.idea
+.DS_Store
+npm-debug.log*
