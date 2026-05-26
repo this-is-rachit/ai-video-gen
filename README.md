@@ -1,4 +1,4 @@
-﻿# 🎬 Reelify
+# 🎬 Reelify
 
 **Turn a single topic into a finished, voiced, captioned video — in one click.**
 
