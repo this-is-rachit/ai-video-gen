@@ -13,15 +13,20 @@ import { alignWithDeepgram } from "@/lib/align";
 import { searchPexelsImages, searchPexelsVideos } from "@/lib/pexels";
 import type { Provider } from "@/lib/llm";
 import { pickMusic } from "@/lib/music";
-
+import { rateLimit, clientIp, LIMITS } from "@/lib/ratelimit";
 export const runtime = "nodejs";
 export const maxDuration = 300;
-
 class StepError extends Error {
   constructor(public service: string, message: string) { super(message); this.name = "StepError"; }
 }
-
 export async function POST(req: Request) {
+  const rl = rateLimit(`studio:${clientIp(req)}`, LIMITS.studio);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { service: "ratelimit", error: `Too many video generations from this device. Please wait about ${rl.retryAfterSec}s and try again.` },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
+    );
+  }
   let project: any = null;
   const warnings: string[] = [];
   try {
@@ -29,13 +34,11 @@ export async function POST(req: Request) {
     if (!topic?.trim()) return NextResponse.json({ service: "input", error: "Please enter a topic." }, { status: 400 });
     if (!apiKey) return NextResponse.json({ service: "byok", error: "Add your LLM API key in settings." }, { status: 400 });
     const lang = language || "en-US";
-
     // 1) PROJECT
     project = await createProject({ topic, language: lang, voiceId, style });
     project.aspect = aspect === "landscape" ? "landscape" : "portrait";
     await saveProject(project);
     console.log(`\n[studio] ${project.id} ▶ "${topic}" (${lang}) via ${provider}`);
-
     // 2) SCRIPT — fatal if it fails
     project.status = "scripting"; await saveProject(project);
     let drafts;
@@ -50,7 +53,6 @@ export async function POST(req: Request) {
     project.stylePack = drafts.stylePack ?? null;
     await saveProject(project);
     console.log(`[studio] ${project.id} ✓ script (${project.scenes.length} scenes)`);
-
     // 3) VOICE — fatal if it fails
     project.status = "voicing"; await saveProject(project);
     const voice = voiceForLocale(lang, project.voiceId);
@@ -64,7 +66,6 @@ export async function POST(req: Request) {
       }
     }
     console.log(`[studio] ${project.id} ✓ voice`);
-
     // 4) CAPTIONS — non-fatal (estimation fallback)
     project.status = "aligning"; await saveProject(project);
     let dgFallback = 0;
@@ -82,7 +83,6 @@ export async function POST(req: Request) {
     }
     if (dgFallback) warnings.push(`${dgFallback} scene(s) used estimated caption timing (Deepgram unavailable/limit).`);
     console.log(`[studio] ${project.id} ✓ captions`);
-
    // 5) MEDIA — aspect-aware (Pexels images + b-roll video + matching backgrounds)
     const ori: "portrait" | "landscape" = project.aspect === "landscape" ? "landscape" : "portrait";
     const usedImg = new Set<string>(), usedVid = new Set<string>();
@@ -132,7 +132,6 @@ export async function POST(req: Request) {
     }
     if (noMedia) warnings.push(`${noMedia} scene(s) had no stock media (Pexels limit or no match).`);
     console.log(`[studio] ${project.id} ✓ media (${ori})`);
-
    // 6) MUSIC — topic-matched (Jamendo by mood) with local fallback
     const scriptText = project.scenes
       .map((s: any) => [s.visual.title, s.visual.subtitle, s.visual.caption, s.visual.quote, ...(s.visual.bullets || [])].filter(Boolean).join(" "))
@@ -143,7 +142,6 @@ export async function POST(req: Request) {
     project.musicMood = m?.mood ?? null;
     if (m) console.log(`[studio] music mood: ${m.mood}`);
     else warnings.push("No music (add JAMENDO_CLIENT_ID to .env.local or drop mp3s in /public/music).");
-
     project.status = "done";
     const saved = await saveProject(project);
     console.log(`[studio] ${project.id} ✅ DONE${warnings.length ? " (with warnings)" : ""}\n`);

@@ -1,12 +1,20 @@
 // app/api/projects/[id]/render/route.ts
 import { NextResponse } from "next/server";
 import { getProject } from "@/lib/store";
+import { rateLimit, clientIp, LIMITS } from "@/lib/ratelimit";
 
 export const runtime = "nodejs";
 export const maxDuration = 600;
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const rl = rateLimit(`render:${clientIp(req)}`, LIMITS.render);
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: `Too many render requests from this device. Please wait about ${rl.retryAfterSec}s and try again.` },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } }
+      );
+    }
     const { id } = await params;
     const project = await getProject(id);
     if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
