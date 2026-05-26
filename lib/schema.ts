@@ -77,6 +77,7 @@ export const ProjectSchema = z.object({
   musicMood: z.string().nullable().optional(),
   stylePack: z.string().nullable().optional(),
   aspect: z.enum(["portrait", "landscape"]).default("portrait"),
+  targetSeconds: z.number().nullable().optional(),  // requested video length (30–300s); drives script size
   renderProgress: z.number().nullable().optional(),
   renderQuality: z.enum(["quick", "hd"]).nullable().optional(),
   createdAt: z.string(),

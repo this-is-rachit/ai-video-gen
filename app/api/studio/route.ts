@@ -31,20 +31,22 @@ export async function POST(req: Request) {
   let project: any = null;
   const warnings: string[] = [];
   try {
-    const { topic, language, voiceId, style, provider, apiKey, model, aspect } = await req.json();
+    const { topic, language, voiceId, style, provider, apiKey, model, aspect, targetSeconds } = await req.json();
     if (!topic?.trim()) return NextResponse.json({ service: "input", error: "Please enter a topic." }, { status: 400 });
     if (!apiKey) return NextResponse.json({ service: "byok", error: "Add your LLM API key in settings." }, { status: 400 });
     const lang = language || "en-US";
+    const target = Math.max(30, Math.min(300, Math.round(Number(targetSeconds) || 120))); // 5-min ceiling
     // 1) PROJECT
     project = await createProject({ topic, language: lang, voiceId, style });
     project.aspect = aspect === "landscape" ? "landscape" : "portrait";
+    project.targetSeconds = target;
     await saveProject(project);
-    console.log(`\n[studio] ${project.id} ▶ "${topic}" (${lang}) via ${provider}`);
+    console.log(`\n[studio] ${project.id} ▶ "${topic}" (${lang}, ~${target}s) via ${provider}`);
     // 2) SCRIPT — fatal if it fails
     project.status = "scripting"; await saveProject(project);
     let drafts;
     try {
-      const gen = { topic, language: lang, provider: provider as Provider, apiKey, model };
+      const gen = { topic, language: lang, provider: provider as Provider, apiKey, model, targetSeconds: target };
       const facts = await researchTopic(gen);
       drafts = await writeScript(gen, facts);
     } catch (e: any) {
