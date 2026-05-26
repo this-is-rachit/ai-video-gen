@@ -47,6 +47,7 @@ const editableSig = (scenes: any[]) => JSON.stringify((scenes || []).map((s) => 
   v: { title: s.visual.title, subtitle: s.visual.subtitle, bullets: s.visual.bullets, value: s.visual.value, caption: s.visual.caption, quote: s.visual.quote, attribution: s.visual.attribution, leftLabel: s.visual.leftLabel, rightLabel: s.visual.rightLabel },
 })));
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+const CHAT_SUGGESTIONS = ["Make the intro punchier", "Shorten all captions", "Fix any typos", "Make the tone more exciting"];
 export default function EditPage() {
   const params = useParams();
   const id = String(params?.id || "");
@@ -58,11 +59,27 @@ export default function EditPage() {
   const [editError, setEditError] = useState<{ service: string; msg: string } | null>(null);
   const [editWarnings, setEditWarnings] = useState<string[]>([]);
   const [previewVersion, setPreviewVersion] = useState(0);
-  // pending video trim: { sceneId, field, file, clipDur, start, end, sceneSec }
   const [trim, setTrim] = useState<any>(null);
+  // BYOK creds (for AI chat editing)
+  const [provider, setProvider] = useState("google");
+  const [apiKey, setApiKey] = useState("");
+  const [model, setModel] = useState("");
+  // chat
+  const [chatOpen, setChatOpen] = useState(false);
+  const [messages, setMessages] = useState<{ role: "user" | "assistant"; text: string; applied?: number[] }[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatBusy, setChatBusy] = useState(false);
   const render = useRenderJob();
   const didLoad = useRef(false);
-  const originalScenes = useRef<any[]>([]); // pristine media+text snapshot for Reset
+  const originalScenes = useRef<any[]>([]);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const remember = localStorage.getItem("llm_remember") === "1";
+    const store = remember ? localStorage : sessionStorage;
+    setProvider(store.getItem("llm_provider") || "google");
+    setApiKey(store.getItem("llm_key") || "");
+    setModel(store.getItem("llm_model") || "");
+  }, []);
   useEffect(() => {
     if (!id || didLoad.current) return;
     didLoad.current = true;
@@ -73,57 +90,19 @@ export default function EditPage() {
         const p = await res.json();
         setProject(p);
         setEditScenes(JSON.parse(JSON.stringify(p.scenes || [])));
-        originalScenes.current = JSON.parse(JSON.stringify(p.scenes || [])); // pristine snapshot
+        originalScenes.current = JSON.parse(JSON.stringify(p.scenes || []));
         render.reset(p.videoUrl || null, p.renderQuality ?? null);
       } catch { setLoadError("Could not load this project."); }
     })();
     return () => render.stop();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, chatBusy]);
   function updateNarration(idx: number, value: string) {
     setEditScenes((prev) => prev.map((s, i) => (i === idx ? { ...s, narration: value } : s)));
   }
   function updateField(idx: number, key: string, value: any) {
     setEditScenes((prev) => prev.map((s, i) => (i === idx ? { ...s, visual: { ...s.visual, [key]: value } } : s)));
-  }
-  async function resetEdits() {
-    const orig = originalScenes.current;
-    if (!project || !orig.length) return;
-    setEditError(null); setEditWarnings([]);
-    // Did any scene's media differ from the original (i.e. an upload happened)?
-    const base = new Map(project.scenes.map((s: any) => [s.id, s]));
-    const mediaChanged = orig.some((o: any) => {
-      const cur: any = base.get(o.id); if (!cur) return false;
-      const k = ["imageUrl", "bgImageUrl", "bRollUrl", "leftImageUrl", "rightImageUrl"];
-      return k.some((f) => (cur.visual[f] || null) !== (o.visual[f] || null)) ||
-        JSON.stringify(cur.visual.imageUrls || null) !== JSON.stringify(o.visual.imageUrls || null);
-    });
-    // Always restore text instantly in the editor.
-    setEditScenes(JSON.parse(JSON.stringify(orig)));
-    if (!mediaChanged) return; // text-only reset — done
-    // Media was replaced by uploads (persisted server-side) → restore it on the server.
-    setSaving(true);
-    try {
-      const payload = {
-        scenes: orig.map((o: any) => ({
-          id: o.id,
-          restoreMedia: {
-            imageUrl: o.visual.imageUrl ?? null, imageCredit: o.visual.imageCredit ?? null,
-            bgImageUrl: o.visual.bgImageUrl ?? null, bRollUrl: o.visual.bRollUrl ?? null,
-            bRollCredit: o.visual.bRollCredit ?? null, leftImageUrl: o.visual.leftImageUrl ?? null,
-            rightImageUrl: o.visual.rightImageUrl ?? null, imageUrls: o.visual.imageUrls ?? null,
-          },
-        })),
-      };
-      const res = await fetch(`/api/projects/${project.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      const data = await res.json();
-      if (!res.ok) { setEditError({ service: data.service || "server", msg: data.error || "Reset failed" }); return; }
-      setProject(data);
-      setEditScenes(JSON.parse(JSON.stringify(data.scenes || [])));
-      render.setVideoUrl(null);
-      setPreviewVersion((v) => v + 1); // remount so original media reloads in preview
-    } catch (e: any) { setEditError({ service: "network", msg: e?.message || "Reset failed" }); }
-    finally { setSaving(false); }
   }
   function mergeUploadResult(data: any, sceneId: string) {
     setEditScenes((prev) => prev.map((s) => {
@@ -153,7 +132,6 @@ export default function EditPage() {
     } catch (e: any) { setEditError({ service: "network", msg: e?.message || "Upload failed" }); }
     finally { setUploading(""); }
   }
-  // For video: read its duration in the browser, then open the trim panel.
   function pickVideo(sceneId: string, field: string, file: File, sceneSec: number) {
     const url = URL.createObjectURL(file);
     const vid = document.createElement("video");
@@ -184,6 +162,42 @@ export default function EditPage() {
     } catch (e: any) { setEditError({ service: "network", msg: e?.message || "Upload failed" }); }
     finally { setUploading(""); }
   }
+  async function resetEdits() {
+    const orig = originalScenes.current;
+    if (!project || !orig.length) return;
+    setEditError(null); setEditWarnings([]);
+    const base = new Map(project.scenes.map((s: any) => [s.id, s]));
+    const mediaChanged = orig.some((o: any) => {
+      const cur: any = base.get(o.id); if (!cur) return false;
+      const k = ["imageUrl", "bgImageUrl", "bRollUrl", "leftImageUrl", "rightImageUrl"];
+      return k.some((f) => (cur.visual[f] || null) !== (o.visual[f] || null)) ||
+        JSON.stringify(cur.visual.imageUrls || null) !== JSON.stringify(o.visual.imageUrls || null);
+    });
+    setEditScenes(JSON.parse(JSON.stringify(orig)));
+    if (!mediaChanged) return;
+    setSaving(true);
+    try {
+      const payload = {
+        scenes: orig.map((o: any) => ({
+          id: o.id,
+          restoreMedia: {
+            imageUrl: o.visual.imageUrl ?? null, imageCredit: o.visual.imageCredit ?? null,
+            bgImageUrl: o.visual.bgImageUrl ?? null, bRollUrl: o.visual.bRollUrl ?? null,
+            bRollCredit: o.visual.bRollCredit ?? null, leftImageUrl: o.visual.leftImageUrl ?? null,
+            rightImageUrl: o.visual.rightImageUrl ?? null, imageUrls: o.visual.imageUrls ?? null,
+          },
+        })),
+      };
+      const res = await fetch(`/api/projects/${project.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const data = await res.json();
+      if (!res.ok) { setEditError({ service: data.service || "server", msg: data.error || "Reset failed" }); return; }
+      setProject(data);
+      setEditScenes(JSON.parse(JSON.stringify(data.scenes || [])));
+      render.setVideoUrl(null);
+      setPreviewVersion((v) => v + 1);
+    } catch (e: any) { setEditError({ service: "network", msg: e?.message || "Reset failed" }); }
+    finally { setSaving(false); }
+  }
   async function saveEdits() {
     if (!project) return;
     setSaving(true); setEditError(null); setEditWarnings([]);
@@ -207,12 +221,41 @@ export default function EditPage() {
     } catch (e: any) { setEditError({ service: "network", msg: e?.message || "Network error" }); }
     finally { setSaving(false); }
   }
+  function applyChatPatch(patch: any[]): number[] {
+    if (!patch.length) return [];
+    const ids = new Set(patch.map((p) => p.id));
+    const nums = editScenes.map((s, i) => (ids.has(s.id) ? i + 1 : null)).filter(Boolean) as number[];
+    setEditScenes((prev) => prev.map((s) => {
+      const p = patch.find((x) => x.id === s.id);
+      if (!p) return s;
+      return { ...s, narration: typeof p.narration === "string" ? p.narration : s.narration, visual: { ...s.visual, ...(p.visual || {}) } };
+    }));
+    return nums;
+  }
+  async function sendChat(text?: string) {
+    const msg = (text ?? chatInput).trim();
+    if (!msg || !project || chatBusy) return;
+    if (!apiKey) { setMessages((m) => [...m, { role: "assistant", text: "Add your LLM API key in Studio first, then come back to edit with AI." }]); return; }
+    setMessages((m) => [...m, { role: "user", text: msg }]);
+    setChatInput(""); setChatBusy(true);
+    try {
+      const snapshot = editScenes.map((s) => ({
+        id: s.id, narration: s.narration,
+        visual: { title: s.visual.title, subtitle: s.visual.subtitle, bullets: s.visual.bullets, value: s.visual.value, caption: s.visual.caption, quote: s.visual.quote, attribution: s.visual.attribution, leftLabel: s.visual.leftLabel, rightLabel: s.visual.rightLabel },
+      }));
+      const res = await fetch(`/api/projects/${project.id}/chat`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: msg, provider, apiKey, model, scenes: snapshot }) });
+      const data = await res.json();
+      if (!res.ok) { setMessages((m) => [...m, { role: "assistant", text: data.error || "Something went wrong." }]); return; }
+      const patch = data.scenes || [];
+      const changed = applyChatPatch(patch);
+      setMessages((m) => [...m, { role: "assistant", text: data.reply || "Done.", applied: changed }]);
+    } catch (e: any) { setMessages((m) => [...m, { role: "assistant", text: "Network error — please try again." }]); }
+    finally { setChatBusy(false); }
+  }
   const previewProject = project ? { ...project, scenes: editScenes.length ? editScenes : project.scenes } : null;
   const landscape = previewProject?.aspect === "landscape";
   const playerStyle: React.CSSProperties = landscape ? { width: "100%", maxWidth: 540, aspectRatio: "16 / 9" } : { width: "100%", maxWidth: 360, aspectRatio: "9 / 16" };
   const dirty = !!project && editableSig(editScenes) !== editableSig(project.scenes);
-  // media differs from the pristine snapshot? (uploads persist immediately, so
-  // this is what lets Reset undo an upload even with no pending text edits)
   const mediaDirty = !!project && originalScenes.current.length > 0 && project.scenes.some((cur: any) => {
     const o = originalScenes.current.find((x: any) => x.id === cur.id); if (!o) return false;
     const k = ["imageUrl", "bgImageUrl", "bRollUrl", "leftImageUrl", "rightImageUrl"];
@@ -231,12 +274,15 @@ export default function EditPage() {
         .edit-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(380px,560px); gap: 28px; align-items: start; }
         .edit-preview { position: sticky; top: 110px; }
         @media (max-width: 980px) { .edit-grid { grid-template-columns: 1fr; } .edit-preview { position: static; } }
+        @keyframes msgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+        .chat-msg { animation: msgIn .25s ease both; }
+        @keyframes dots { 0%,80%,100%{opacity:.3} 40%{opacity:1} }
       `}</style>
       <Dock links={[{ label: "Studio", href: "/studio" }]} cta={{ label: "← Back to Studio", href: "/studio" }} />
 
       {/* VIDEO TRIM MODAL */}
       {trim && (
-        <div style={ST.modalWrap} onClick={() => uploading ? null : setTrim(null)}>
+        <div style={ST.modalWrap} onClick={() => (uploading ? null : setTrim(null))}>
           <div style={ST.modal} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ fontWeight: 800, fontSize: 18 }}>Trim your clip</h3>
             <p style={{ fontSize: 13, color: "var(--muted)", marginTop: 6, lineHeight: 1.5 }}>
@@ -278,15 +324,15 @@ export default function EditPage() {
           <>
             <p style={ST.kicker}>Editor</p>
             <h1 style={ST.h1}>{project.topic}</h1>
-            <p style={ST.sub}>Fine-tune every scene. The preview updates as you type.</p>
+            <p style={ST.sub}>Fine-tune every scene by hand, or just ask the AI assistant.</p>
 
             <div style={ST.howto}>
               <strong style={{ fontSize: 14 }}>How editing works</strong>
               <ul style={{ margin: "10px 0 0", paddingLeft: 18, display: "grid", gap: 6, fontSize: 13, color: "var(--muted)", lineHeight: 1.55 }}>
-                <li>Edit the <b>on-screen text</b> or the spoken <b>narration</b> for any scene — the preview on the right reflects it live.</li>
-                <li>Editing on-screen text only is <b>free and instant</b>. Changing narration <b>re-voices that scene</b> (uses Murf voice credits) and re-syncs its captions when you save.</li>
-                <li><b>Replace any stock photo or video with your own.</b> Images are auto-fitted to the frame; for video you choose which part of the clip to use, and we trim &amp; fit it for you.</li>
-                <li>Click <b>Save changes</b> for text/narration edits, then <b>Render &amp; download</b> to export the updated MP4.</li>
+                <li>Edit on-screen text or narration directly, or use the <b>✦ Edit with AI</b> button (bottom-right) to make changes in plain language.</li>
+                <li>Editing text is <b>free and instant</b>. Changing narration <b>re-voices that scene</b> (uses Murf voice credits) and re-syncs captions when you save.</li>
+                <li><b>Replace any stock photo or video with your own.</b> Images auto-fit the frame; for video you pick the part of the clip to use.</li>
+                <li>AI changes appear in the preview right away — review them, then <b>Save changes</b> and <b>Render &amp; download</b>.</li>
               </ul>
             </div>
 
@@ -400,6 +446,66 @@ export default function EditPage() {
           </>
         )}
       </div>
+
+      {/* AI CHAT ASSISTANT */}
+      {project && !loadError && (
+        <>
+          {!chatOpen && (
+            <button onClick={() => setChatOpen(true)} style={ST.fab}>✦ Edit with AI</button>
+          )}
+          {chatOpen && (
+            <div style={ST.chatPanel}>
+              <div style={ST.chatHead}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 16 }}>✦</span>
+                  <strong style={{ fontSize: 14 }}>Edit with AI</strong>
+                </div>
+                <button onClick={() => setChatOpen(false)} style={ST.chatClose}>✕</button>
+              </div>
+              <div style={ST.chatBody}>
+                {messages.length === 0 && (
+                  <div style={{ color: "var(--muted)", fontSize: 13, lineHeight: 1.55 }}>
+                    Ask me to rewrite narration or on-screen text in plain language. I’ll update the preview — review, then Save.
+                    <div style={{ display: "grid", gap: 6, marginTop: 12 }}>
+                      {CHAT_SUGGESTIONS.map((sug) => (
+                        <button key={sug} onClick={() => sendChat(sug)} disabled={chatBusy} style={ST.suggestion}>{sug}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {messages.map((m, i) => (
+                  <div key={i} className="chat-msg" style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+                    <div style={m.role === "user" ? ST.bubbleUser : ST.bubbleAI}>
+                      {m.text}
+                      {m.role === "assistant" && m.applied && m.applied.length > 0 && (
+                        <div style={ST.appliedTag}>✓ Updated scene{m.applied.length > 1 ? "s" : ""} {m.applied.join(", ")}</div>
+                      )}
+                      {m.role === "assistant" && m.applied && m.applied.length === 0 && (
+                        <div style={{ ...ST.appliedTag, color: "var(--muted)", background: "transparent", border: "none", paddingLeft: 0 }}>No changes made</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {chatBusy && <div style={ST.bubbleAI}><span style={{ animation: "dots 1.2s infinite" }}>● ● ●</span></div>}
+                <div ref={chatEndRef} />
+              </div>
+              {!apiKey && <div style={ST.chatWarn}>Add your LLM API key in <Link href="/studio" style={{ color: "var(--accent)", fontWeight: 600 }}>Studio</Link> to use AI editing.</div>}
+              <div style={ST.chatFoot}>
+                <textarea value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="e.g. Make scene 2’s caption shorter"
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
+                  rows={1} disabled={chatBusy} style={ST.chatInput} />
+                <button onClick={() => sendChat()} disabled={chatBusy || !chatInput.trim()} aria-label="Send" title="Send"
+                  style={{ ...ST.chatSend, opacity: chatBusy || !chatInput.trim() ? 0.45 : 1, cursor: chatBusy || !chatInput.trim() ? "default" : "pointer" }}>
+                  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 2 11 13" />
+                    <path d="M22 2 15 22l-4-9-9-4 20-7Z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -436,4 +542,17 @@ const ST: Record<string, React.CSSProperties> = {
   modal: { background: "#fff", border: "1px solid #e0d4bd", borderRadius: 22, padding: 26, width: "min(460px, 100%)", boxShadow: "0 40px 100px rgba(120,90,60,0.3)" },
   trimLabel: { display: "flex", justifyContent: "space-between", fontSize: 12.5, fontWeight: 600, color: "var(--muted)", marginBottom: 6 },
   trimSel: { fontSize: 12.5, color: "var(--accent-2)", fontWeight: 600, textAlign: "center", background: "rgba(78,124,107,0.1)", borderRadius: 10, padding: "8px 12px" },
+  fab: { position: "fixed", bottom: 24, right: 24, zIndex: 60, padding: "14px 22px", background: "var(--accent)", color: "#fff", border: "none", borderRadius: 99, cursor: "pointer", fontWeight: 700, fontSize: 15, boxShadow: "0 16px 40px rgba(229,83,43,0.4)" },
+  chatPanel: { position: "fixed", bottom: 24, right: 24, zIndex: 60, width: "min(380px, calc(100vw - 32px))", height: "min(540px, calc(100vh - 140px))", background: "#fff", border: "1px solid #e0d4bd", borderRadius: 20, display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 30px 80px rgba(120,90,60,0.3)" },
+  chatHead: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #efe7d6", background: "linear-gradient(180deg,#fffdf8,#faf6ee)" },
+  chatClose: { background: "transparent", border: "none", fontSize: 16, color: "var(--muted)", cursor: "pointer", lineHeight: 1 },
+  chatBody: { flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 10 },
+  bubbleUser: { background: "var(--accent)", color: "#fff", padding: "9px 13px", borderRadius: "14px 14px 4px 14px", fontSize: 13.5, lineHeight: 1.45, maxWidth: "85%" },
+  bubbleAI: { background: "#faf6ee", color: "var(--ink)", padding: "9px 13px", borderRadius: "14px 14px 14px 4px", fontSize: 13.5, lineHeight: 1.45, maxWidth: "90%", border: "1px solid #efe7d6", alignSelf: "flex-start" },
+  appliedTag: { marginTop: 7, fontSize: 11, fontWeight: 700, color: "var(--accent-2)", background: "rgba(78,124,107,0.12)", border: "1px solid rgba(78,124,107,0.3)", borderRadius: 8, padding: "3px 8px", display: "inline-block" },
+  suggestion: { textAlign: "left", padding: "8px 12px", background: "#faf6ee", border: "1px solid #e6dcc9", borderRadius: 10, fontSize: 12.5, color: "var(--ink)", cursor: "pointer", fontWeight: 500 },
+  chatWarn: { fontSize: 12, color: "#8a5a12", background: "#fbf1dc", borderTop: "1px solid #e8c98a", padding: "8px 14px" },
+  chatFoot: { display: "flex", gap: 8, padding: 12, borderTop: "1px solid #efe7d6", alignItems: "center" },
+  chatInput: { flex: 1, padding: "11px 12px", background: "#faf6ee", border: "1.5px solid #e0d4bd", borderRadius: 12, fontSize: 13.5, resize: "none", fontFamily: "inherit", lineHeight: 1.4, height: 44, maxHeight: 110 },
+  chatSend: { width: 44, height: 44, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", background: "var(--accent)", color: "#fff", border: "none", borderRadius: 12, cursor: "pointer", boxShadow: "0 6px 16px rgba(229,83,43,0.30)", transition: "transform .12s ease, box-shadow .12s ease" },
 };
