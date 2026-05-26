@@ -36,6 +36,9 @@ export const VisualSchema = z.object({
   rightImageQuery: z.string().optional(),
   leftImageUrl: z.string().nullable().optional(),
   rightImageUrl: z.string().nullable().optional(),
+  // marks a scene whose media was replaced by a user upload — a future media
+  // re-fetch must not clobber it. The renderer ignores this field.
+  userUploaded: z.boolean().optional(),
 });
 
 export const WordSchema = z.object({

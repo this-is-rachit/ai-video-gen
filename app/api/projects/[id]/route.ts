@@ -66,6 +66,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       if (!scene) continue;
       if (typeof e.narration === "string" && e.narration.trim()) scene.narration = e.narration.trim();
       if (e.visual && typeof e.visual === "object") scene.visual = mergeVisualEdit(scene.visual, e.visual);
+      // Optional explicit media restore (used by the editor's Reset). Only the
+      // known media URL fields are accepted, and only as strings/null/arrays.
+      if (e.restoreMedia && typeof e.restoreMedia === "object") {
+        const rm = e.restoreMedia;
+        const v: any = scene.visual;
+        for (const k of ["imageUrl", "imageCredit", "bgImageUrl", "bRollUrl", "bRollCredit", "leftImageUrl", "rightImageUrl"]) {
+          if (k in rm) v[k] = rm[k] ?? null;
+        }
+        if ("imageUrls" in rm) v.imageUrls = Array.isArray(rm.imageUrls) ? rm.imageUrls : v.imageUrls;
+        v.userUploaded = false;
+      }
     }
 
     // 4) Re-voice changed-narration scenes (sequential; budget already reserved).

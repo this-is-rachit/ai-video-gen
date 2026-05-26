@@ -1,8 +1,7 @@
 // next.config.ts
 import type { NextConfig } from "next";
-
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["@remotion/renderer", "@remotion/bundler", "esbuild"],
+  serverExternalPackages: ["@remotion/renderer", "@remotion/bundler", "esbuild", "sharp", "ffmpeg-static"],
   webpack: (config, { isServer }) => {
     if (isServer) {
       config.externals = config.externals || [];
@@ -22,5 +21,4 @@ const nextConfig: NextConfig = {
     return config;
   },
 };
-
 export default nextConfig;
