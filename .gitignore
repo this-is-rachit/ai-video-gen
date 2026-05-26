@@ -35,4 +35,4 @@ next-env.d.ts
 /public/cache
 /public/videos
 /public/uploads
-'@ | Set-Content -Encoding utf8 .gitignore
+'@ | Set-Content -Encoding utf8 .gitignore/public/music
