@@ -1,48 +1,38 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
+@'
 # dependencies
 /node_modules
 /.pnp
 .pnp.*
 .yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
-# testing
-/coverage
 
 # next.js
 /.next/
 /out/
-
-# production
 /build
 
 # misc
 .DS_Store
 *.pem
 
-# debug
+# debug logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
-.vercel
+# env files — keep the example, ignore real secrets
+.env
+.env.local
+.env*.local
+!.env.example
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
+# runtime data + generated media (never commit)
 /data
-
 /public/audio
-/public/music
-/public/videos
 /public/cache
+/public/videos
+/public/uploads
+'@ | Set-Content -Encoding utf8 .gitignore
