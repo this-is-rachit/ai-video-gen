@@ -23,8 +23,6 @@ export function localeToDeepgramLang(locale: string): string {
     "ko-kr": "ko",
     "zh-cn": "zh-CN",
     "bn-in": "bn",
-    // a few extras that map cleanly if ever used
-    "nl-nl": "nl", "ta-in": "ta", "te-in": "te", "mr-in": "mr", "gu-in": "gu",
   };
   return map[base] ?? base.split("-")[0];
 }
