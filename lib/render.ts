@@ -147,10 +147,7 @@ async function runRender(id: string, quality: Quality): Promise<void> {
       audioCodec: "aac",
       audioBitrate: "192k",
       concurrency,
-      // hardwareAcceleration removed: your logs show it was auto-disabled by
-      // `crf` ("Hardware accelerated encoding disabled"). Software x264 with
-      // veryfast/fast + crf is stable & predictable on a laptop.
-      offthreadVideoCacheSizeInBytes: 512 * 1024 * 1024,
+      offthreadVideoCacheSizeInBytes: 64 * 1024 * 1024,
       timeoutInMilliseconds: 180000,
       chromiumOptions: { gl: "angle", headless: true },
       onProgress: ({ progress }) => {
