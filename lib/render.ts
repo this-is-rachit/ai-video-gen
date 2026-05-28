@@ -155,7 +155,24 @@ async function runRender(id: string, quality: Quality): Promise<void> {
       // macroblock state, OOM-killing FFmpeg mid-encode after Chromium frame
       // rendering had already succeeded. Cap encoder threads to match render
       // concurrency so FFmpeg fits in the container's RAM.
-      ffmpegOverride: ({ args }) => ["-threads", String(concurrency), ...args],
+      ffmpegOverride: ({ type, args }) => {
+        // pre-stitcher is audio (AAC, doesn't matter); only the final stitcher
+        // runs libx264. Strip any existing -threads (Remotion adds -threads 0 =
+        // auto, which auto-detects 40 host cores) and inject -x264-params,
+        // which libx264 reads directly and which FFmpeg cannot override.
+        if (type !== "stitcher") return args;
+        const cleaned: string[] = [];
+        for (let i = 0; i < args.length; i++) {
+          if (args[i] === "-threads") { i++; continue; } // drop flag + value
+          cleaned.push(args[i]);
+        }
+        const limit = String(Math.max(1, concurrency));
+        return [
+          ...cleaned.slice(0, -1),
+          "-x264-params", `threads=${limit}:lookahead_threads=1:sliced_threads=0`,
+          ...cleaned.slice(-1),
+        ];
+      },
       onProgress: ({ progress }) => {
         jobs.set(id, { status: "rendering", progress, quality });
         if (progress - lastSaved >= 0.05) {
