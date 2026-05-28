@@ -150,6 +150,12 @@ async function runRender(id: string, quality: Quality): Promise<void> {
       offthreadVideoCacheSizeInBytes: 64 * 1024 * 1024,
       timeoutInMilliseconds: 180000,
       chromiumOptions: { gl: "angle", headless: true },
+      // libx264 detects host core count (cgroup-unaware) and spawned ~40 encoder
+      // threads on Railway's 2-core container — each thread holds ~15-25MB of
+      // macroblock state, OOM-killing FFmpeg mid-encode after Chromium frame
+      // rendering had already succeeded. Cap encoder threads to match render
+      // concurrency so FFmpeg fits in the container's RAM.
+      ffmpegOverride: ({ args }) => ["-threads", String(concurrency), ...args],
       onProgress: ({ progress }) => {
         jobs.set(id, { status: "rendering", progress, quality });
         if (progress - lastSaved >= 0.05) {
