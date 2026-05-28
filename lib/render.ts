@@ -5,7 +5,7 @@ import { promises as fs } from "fs";
 import { bundle } from "@remotion/bundler";
 import { selectComposition, renderMedia, ensureBrowser } from "@remotion/renderer";
 import { getProject, saveProject } from "./store";
-import { localizeAssets } from "./assets";
+import { localizeAssets, rewriteForRender } from "./assets";
 export type Quality = "quick" | "hd";
 const PRESETS: Record<Quality, { scale: number; x264Preset: any; crf: number; jpegQuality: number }> = {
   quick: { scale: 2 / 3, x264Preset: "veryfast", crf: 26, jpegQuality: 80 },
@@ -104,7 +104,11 @@ async function runRender(id: string, quality: Quality): Promise<void> {
     project.musicUrl = localized.musicUrl;
     await saveProject(project);
     const serveUrl = await getServeUrl();
-    const inputProps = { project: localized };
+    // Rewrite local "/cache/..." URLs → "http://127.0.0.1:PORT/cache/..." so
+    // Remotion's bundle server (which only sees the bundle-time snapshot of
+    // public/) never has to find files we wrote at runtime. Next.js serves them.
+    const renderable = rewriteForRender(localized);
+    const inputProps = { project: renderable };
     const composition = await selectComposition({ serveUrl, id: "main", inputProps });
     const outDir = path.join(PUBLIC_DIR, "videos");
     await fs.mkdir(outDir, { recursive: true });

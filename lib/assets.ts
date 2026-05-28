@@ -57,3 +57,47 @@ export async function localizeAssets(project: Project): Promise<Project> {
   if (isRemote(p.musicUrl)) { const f = await downloadOne(p.musicUrl!, dir, "aud"); if (f) p.musicUrl = localUrl(f); }
   return p;
 }
+// ── Render-time URL rewrite ──
+// Remotion's bundle server only serves files that existed in publicDir at the
+// time bundle() was called. Anything we write at runtime (voice MP3s, cached
+// Pexels images, downloaded Jamendo music, user uploads) lands in public/* on
+// disk but is invisible to Remotion's serve URL → 404s during render.
+//
+// Fix: hand the renderer absolute http URLs pointing at Next.js, which is
+// alive in the same container on process.env.PORT and natively serves public/*
+// at the URL root. Bundle-time static files (sfx, fonts) keep going through
+// staticFile() unchanged. Only the project copy passed to renderMedia gets
+// rewritten — the project on disk keeps its clean "/cache/..." URLs so the
+// studio Player keeps working in the browser too.
+function nextOrigin(): string {
+  const port = process.env.PORT || "3000";
+  return `http://127.0.0.1:${port}`;
+}
+
+function toHttp(u?: string | null): string | null | undefined {
+  if (!u) return u;
+  if (/^https?:\/\//i.test(u)) return u;
+  if (u.startsWith("/")) return nextOrigin() + u;
+  return u;
+}
+
+/**
+ * Returns a clone of the project with all root-relative ("/cache/x") URLs
+ * rewritten to absolute http://127.0.0.1:PORT URLs. Call AFTER localizeAssets,
+ * just before passing project to renderMedia as inputProps.
+ */
+export function rewriteForRender(project: Project): Project {
+  const p: Project = JSON.parse(JSON.stringify(project));
+  for (const s of p.scenes) {
+    if (s.audioUrl) s.audioUrl = toHttp(s.audioUrl) ?? s.audioUrl;
+    const v: any = s.visual;
+    if (v.imageUrl)      v.imageUrl      = toHttp(v.imageUrl);
+    if (v.bgImageUrl)    v.bgImageUrl    = toHttp(v.bgImageUrl);
+    if (v.bRollUrl)      v.bRollUrl      = toHttp(v.bRollUrl);
+    if (v.leftImageUrl)  v.leftImageUrl  = toHttp(v.leftImageUrl);
+    if (v.rightImageUrl) v.rightImageUrl = toHttp(v.rightImageUrl);
+    if (Array.isArray(v.imageUrls)) v.imageUrls = v.imageUrls.map((u: string) => toHttp(u));
+  }
+  if (p.musicUrl) p.musicUrl = toHttp(p.musicUrl) ?? p.musicUrl;
+  return p;
+}
