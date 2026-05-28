@@ -1,15 +1,16 @@
-# Dockerfile — Reelify on Railway (always-on, single instance, NOT serverless)
+﻿# Dockerfile — Reelify on Railway (always-on, single instance, NOT serverless)
 # Base: Node 22 LTS Debian slim (Remotion's recommended image).
 FROM node:22-bookworm-slim
 
 # 1) Chrome Headless Shell shared libraries (Remotion renders via headless
-#    Chrome). List per Remotion's Linux-dependencies docs. Note: Bookworm ships
-#    libasound2t64 (the old libasound2 name no longer resolves here).
+#    Chrome). List per Remotion's Linux-dependencies docs. Note: Debian Bookworm
+#    ships ALSA as `libasound2`. The `libasound2t64` name only exists on newer
+#    releases (Trixie/Sid, Ubuntu 24.04) due to the 64-bit time_t transition.
 RUN apt-get update && apt-get install -y \
     libnss3 \
     libdbus-1-3 \
     libatk1.0-0 \
-    libasound2t64 \
+    libasound2 \
     libxrandr2 \
     libxkbcommon-dev \
     libxfixes3 \
