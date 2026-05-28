@@ -42,7 +42,20 @@ export async function GET(
   try {
     const data = await fs.readFile(filePath);
     const ext = path.extname(filePath).toLowerCase();
-    const contentType = CONTENT_TYPES[ext] || "application/octet-stream";
+    let contentType = CONTENT_TYPES[ext] || "application/octet-stream";
+
+    // Defensive: sniff the first 12 bytes and override Content-Type if the
+    // extension lies about what's inside. Falcon TTS returns WAV-wrapped PCM
+    // but the save path uses a generic ".mp3" extension; without this,
+    // headless Chromium tries to decode WAV as MPEG audio and emits silence.
+    if (data.length >= 12) {
+      const head4 = data.subarray(0, 4).toString("ascii");
+      const head8to12 = data.subarray(8, 12).toString("ascii");
+      if (head4 === "RIFF" && head8to12 === "WAVE") contentType = "audio/wav";
+      else if (head4 === "OggS") contentType = "audio/ogg";
+      else if (data[0] === 0x49 && data[1] === 0x44 && data[2] === 0x33) contentType = "audio/mpeg"; // ID3
+      else if (data[0] === 0xff && (data[1] & 0xe0) === 0xe0) contentType = "audio/mpeg"; // MPEG sync
+    }
     return new NextResponse(data, {
       status: 200,
       headers: {
