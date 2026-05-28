@@ -16,6 +16,7 @@ const nextConfig: NextConfig = {
     // beforeFiles forces the rewrite to win, always routing through our API.
     return {
       beforeFiles: [
+        { source: "/audio/:path*",  destination: "/api/asset/audio/:path*"  },
         { source: "/cache/:path*",  destination: "/api/asset/cache/:path*"  },
         { source: "/videos/:path*", destination: "/api/asset/videos/:path*" },
       ],
