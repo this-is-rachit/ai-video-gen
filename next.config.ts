@@ -8,10 +8,18 @@ const nextConfig: NextConfig = {
   // Rewrites are transparent: URLs in the UI and project state stay clean
   // (/cache/foo.jpg, /videos/proj_xxx.mp4) — Next internally forwards them.
   async rewrites() {
-    return [
-      { source: "/cache/:path*",  destination: "/api/asset/cache/:path*"  },
-      { source: "/videos/:path*", destination: "/api/asset/videos/:path*" },
-    ];
+    // beforeFiles, not afterFiles (the default for array returns). When this
+    // returns an array, Next checks the filesystem FIRST and serves public/*
+    // files directly with extension-based Content-Type — which means our
+    // /api/asset/ sniff never runs and WAV-as-".mp3" gets served as audio/mpeg,
+    // making the studio Player silent (browsers reject MIME-content mismatch).
+    // beforeFiles forces the rewrite to win, always routing through our API.
+    return {
+      beforeFiles: [
+        { source: "/cache/:path*",  destination: "/api/asset/cache/:path*"  },
+        { source: "/videos/:path*", destination: "/api/asset/videos/:path*" },
+      ],
+    };
   },
   webpack: (config, { isServer }) => {
     if (isServer) {
