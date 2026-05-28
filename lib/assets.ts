@@ -77,7 +77,13 @@ function nextOrigin(): string {
 function toHttp(u?: string | null): string | null | undefined {
   if (!u) return u;
   if (/^https?:\/\//i.test(u)) return u;
-  if (u.startsWith("/")) return nextOrigin() + u;
+  if (u.startsWith("/")) {
+    // Route through /api/asset/* — Next.js's built-in public/ serving only
+    // exposes files that existed at BUILD time. Voice MP3s and downloaded
+    // media live in public/* but are written at runtime, so we serve them via
+    // an explicit API route that reads from disk per request.
+    return `${nextOrigin()}/api/asset${u}`;
+  }
   return u;
 }
 
