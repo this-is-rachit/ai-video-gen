@@ -112,10 +112,20 @@ async function runRender(id: string, quality: Quality): Promise<void> {
     // Concurrency was 8 (= all cores). Full-res HD × 8 Chromium tabs ran the
     // tabs out of memory ("ProtocolError: Target closed"). Cap HD low; leave
     // headroom so a dev recompile of another page can't fully starve it.
-    const cores = os.cpus()?.length || 4;
+    //
+    // Containers gotcha: os.cpus().length reports the HOST cores (e.g. 6+ on a
+    // shared Railway box), not the cgroup-limited cores allocated to us (2).
+    // Remotion uses its own cgroup-aware count and refuses concurrency above
+    // that, so we use os.availableParallelism() which reads cpu.max via libuv.
+    // RENDER_CONCURRENCY env var lets you pin a value if auto-detect misfires.
+    const detected =
+      typeof os.availableParallelism === "function"
+        ? os.availableParallelism()
+        : (os.cpus()?.length || 2);
+    const cores = Number(process.env.RENDER_CONCURRENCY) || detected;
     const concurrency = quality === "hd"
-      ? Math.max(2, Math.min(4, cores))
-      : Math.max(2, Math.min(6, cores));
+      ? Math.max(1, Math.min(4, cores))
+      : Math.max(1, Math.min(6, cores));
     const cfg = PRESETS[quality];
     console.log(`[render] ${id} rendering ${composition.durationInFrames} frames | ${quality} | concurrency ${concurrency}`);
     let lastSaved = 0;
