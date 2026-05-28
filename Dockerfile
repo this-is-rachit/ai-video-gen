@@ -38,7 +38,7 @@ COPY . .
 
 # 4) Download Chrome Headless Shell into node_modules at build time, so the
 #    first render doesn't pay the download. (Do NOT apt-install Chrome.)
-RUN npx remotion browser ensure
+RUN node -e "require('@remotion/renderer').ensureBrowser().catch(e => { console.error(e); process.exit(1); })"
 
 # 5) Production build (this stack REQUIRES the webpack bundler).
 RUN npm run build
