@@ -1,11 +1,22 @@
-// lib/voices.ts
+﻿// lib/voices.ts
 // Curated Falcon languages + their selectable voice personas.
-// Every voiceId verified against Murf's live Falcon voice library
-// (murf.ai/api/docs/voices-styles/voice-library). Falcon voices all use the
-// single "Conversation" style, so we expose persona choice (voiceId), not style.
+//
+// Sourced from Murf's live Falcon catalog (GET /v1/speech/voices?model=FALCON)
+// — see scripts/list-falcon-voices.js to refresh. Every voiceId below was
+// present in that catalog response; previously this file included voices that
+// looked right in third-party docs but did not actually exist in Falcon
+// (Daisy, Abhik) and Murf rejected them at runtime.
+//
+// Voice IDs use the canonical "locale-name" form (e.g. en-US-matthew). Murf
+// accepts both short and long forms, but the long form is unambiguous —
+// "Amara" exists natively in en-US and via cross-locale in fr-FR, so the full
+// ID makes the choice explicit.
+//
+// Falcon voices ship "Conversational" style only, so we expose persona choice
+// (voiceId), not style.
 
 export interface VoicePersona {
-  voiceId: string;  // Falcon voice ID
+  voiceId: string;  // Falcon voice ID, e.g. "en-US-matthew"
   name: string;     // shown in the Voice dropdown
 }
 
@@ -15,71 +26,81 @@ export interface LangOption {
   voices: VoicePersona[]; // selectable personas; [0] is the default
 }
 
-// The 12 languages we ship, each with verified Falcon personas.
+// 12 languages, every persona verified against Murf's live Falcon catalog.
 export const LANGUAGES: LangOption[] = [
   { locale: "en-US", label: "English (US)", voices: [
-    { voiceId: "Matthew", name: "Matthew (m)" },
-    { voiceId: "Amara",   name: "Amara (f)" },
-    { voiceId: "Ken",     name: "Ken (m)" },
-    { voiceId: "Daisy",   name: "Daisy (f)" },
-    { voiceId: "River",   name: "River (n)" },
+    { voiceId: "en-US-matthew", name: "Matthew (m)" },
+    { voiceId: "en-US-amara",   name: "Amara (f)" },
+    { voiceId: "en-US-ken",     name: "Ken (m)" },
+    { voiceId: "en-US-natalie", name: "Natalie (f)" },
+    { voiceId: "en-US-miles",   name: "Miles (m)" },
+    { voiceId: "en-US-phoebe",  name: "Phoebe (f)" },
   ]},
   { locale: "en-IN", label: "English (India)", voices: [
-    { voiceId: "Anisha",    name: "Anisha (f)" },
-    { voiceId: "Nikhil",    name: "Nikhil (m)" },
-    { voiceId: "Samar",     name: "Samar (m)" },
-    { voiceId: "Tanushree", name: "Tanushree (f)" },
+    { voiceId: "en-IN-anisha",    name: "Anisha (f)" },
+    { voiceId: "en-IN-nikhil",    name: "Nikhil (m)" },
+    { voiceId: "en-IN-aarav",     name: "Aarav (m)" },
+    { voiceId: "en-IN-tanushree", name: "Tanushree (f)" },
+    { voiceId: "en-IN-samar",     name: "Samar (m)" },
+    { voiceId: "en-IN-anusha",    name: "Anusha (f)" },
   ]},
   { locale: "hi-IN", label: "Hindi", voices: [
-    { voiceId: "Aman",    name: "Aman (m)" },
-    { voiceId: "Khyati",  name: "Khyati (f)" },
-    { voiceId: "Karan",   name: "Karan (m)" },
-    { voiceId: "Sunaina", name: "Sunaina (f)" },
-    { voiceId: "Namrita", name: "Namrita (f)" },
+    { voiceId: "hi-IN-aman",    name: "Aman (m)" },
+    { voiceId: "hi-IN-khyati",  name: "Khyati (f)" },
+    { voiceId: "hi-IN-karan",   name: "Karan (m)" },
+    { voiceId: "hi-IN-sunaina", name: "Sunaina (f)" },
+    { voiceId: "hi-IN-namrita", name: "Namrita (f)" },
   ]},
   { locale: "es-ES", label: "Spanish", voices: [
-    { voiceId: "Carla",  name: "Carla (f)" },
-    { voiceId: "Javier", name: "Javier (m)" },
+    { voiceId: "es-ES-carla",   name: "Carla (f)" },
+    { voiceId: "es-ES-javier",  name: "Javier (m)" },
+    { voiceId: "es-ES-carmen",  name: "Carmen (f)" },
+    { voiceId: "es-ES-enrique", name: "Enrique (m)" },
+    { voiceId: "es-ES-elvira",  name: "Elvira (f)" },
   ]},
   { locale: "fr-FR", label: "French", voices: [
-    { voiceId: "Amara",     name: "Amara (f)" },
-    { voiceId: "Axel",      name: "Axel (m)" },
-    { voiceId: "Guillaume", name: "Guillaume (m)" },
+    { voiceId: "fr-FR-axel",      name: "Axel (m)" },
+    { voiceId: "fr-FR-guillaume", name: "Guillaume (m)" },
   ]},
   { locale: "de-DE", label: "German", voices: [
-    { voiceId: "Lara",      name: "Lara (f)" },
-    { voiceId: "Matthias",  name: "Matthias (m)" },
-    { voiceId: "Josephine", name: "Josephine (f)" },
-    { voiceId: "Ralf",      name: "Ralf (m)" },
+    { voiceId: "de-DE-lara",      name: "Lara (f)" },
+    { voiceId: "de-DE-matthias",  name: "Matthias (m)" },
+    { voiceId: "de-DE-josephine", name: "Josephine (f)" },
+    { voiceId: "de-DE-erna",      name: "Erna (f)" },
+    { voiceId: "de-DE-ralf",      name: "Ralf (m)" },
   ]},
   { locale: "pt-BR", label: "Portuguese", voices: [
-    { voiceId: "Isadora", name: "Isadora (f)" },
-    { voiceId: "Heitor",  name: "Heitor (m)" },
-    { voiceId: "Gustavo", name: "Gustavo (m)" },
-    { voiceId: "Eloa",    name: "Eloa (f)" },
+    { voiceId: "pt-BR-isadora", name: "Isadora (f)" },
+    { voiceId: "pt-BR-heitor",  name: "Heitor (m)" },
+    { voiceId: "pt-BR-gustavo", name: "Gustavo (m)" },
+    { voiceId: "pt-BR-eloa",    name: "Eloa (f)" },
+    { voiceId: "pt-BR-silvio",  name: "Silvio (m)" },
   ]},
   { locale: "it-IT", label: "Italian", voices: [
-    { voiceId: "Giulia", name: "Giulia (f)" },
-    { voiceId: "Angelo", name: "Angelo (m)" },
+    { voiceId: "it-IT-giulia", name: "Giulia (f)" },
+    { voiceId: "it-IT-angelo", name: "Angelo (m)" },
   ]},
   { locale: "ja-JP", label: "Japanese", voices: [
-    { voiceId: "Kenji", name: "Kenji (m)" },
-    { voiceId: "Kimi",  name: "Kimi (f)" },
-    { voiceId: "Denki", name: "Denki (m)" },
+    { voiceId: "ja-JP-kenji", name: "Kenji (m)" },
+    { voiceId: "ja-JP-kimi",  name: "Kimi (f)" },
+    { voiceId: "ja-JP-denki", name: "Denki (m)" },
   ]},
   { locale: "ko-KR", label: "Korean", voices: [
-    { voiceId: "JangMi",   name: "JangMi (f)" },
-    { voiceId: "Jong-su",  name: "Jong-su (m)" },
-    { voiceId: "SangHoon", name: "SangHoon (m)" },
+    { voiceId: "ko-KR-jangmi",   name: "JangMi (f)" },
+    { voiceId: "ko-KR-jong-su",  name: "Jong-su (m)" },
+    { voiceId: "ko-KR-sanghoon", name: "SangHoon (m)" },
   ]},
   { locale: "zh-CN", label: "Chinese", voices: [
-    { voiceId: "Wei",    name: "Wei (m)" },
-    { voiceId: "Jiao",   name: "Jiao (f)" },
-    { voiceId: "Baolin", name: "Baolin (m)" },
-    { voiceId: "Zhang",  name: "Zhang (m)" },
+    { voiceId: "zh-CN-wei",    name: "Wei (f)" },
+    { voiceId: "zh-CN-jiao",   name: "Jiao (f)" },
+    { voiceId: "zh-CN-baolin", name: "Baolin (f)" },
+    { voiceId: "zh-CN-zhang",  name: "Zhang (m)" },
+    { voiceId: "zh-CN-tao",    name: "Tao (m)" },
   ]},
   { locale: "bn-IN", label: "Bengali", voices: [
-    { voiceId: "Abhik", name: "Abhik (m)" },
+    { voiceId: "bn-IN-subhankar", name: "Subhankar (m)" },
+    { voiceId: "bn-IN-sourav",    name: "Sourav (m)" },
+    { voiceId: "bn-IN-debarati",  name: "Debarati (f)" },
   ]},
 ];
 
@@ -95,18 +116,19 @@ export function voicesForLocale(locale: string): VoicePersona[] {
 
 /** The default voiceId for a locale ([0] in its list). */
 export function defaultVoiceForLocale(locale: string): string {
-  return BY_LOCALE[locale]?.voices[0]?.voiceId ?? "Matthew";
+  return BY_LOCALE[locale]?.voices[0]?.voiceId ?? "en-US-matthew";
 }
 
 /**
  * Resolve the voice to actually send to Falcon. If the requested voiceId is
  * valid for the locale, use it; otherwise fall back to the locale's default.
- * (Prevents an en-US voice leaking into a Hindi render, etc.)
+ * Also gracefully handles legacy projects stored with old short-form voiceIds
+ * (e.g. "Matthew") — they no longer match, so the default is used instead.
  */
 export function voiceForLocale(locale: string, requestedVoiceId?: string | null): string {
   const list = BY_LOCALE[locale]?.voices ?? [];
   if (requestedVoiceId && list.some((v) => v.voiceId === requestedVoiceId)) return requestedVoiceId;
-  return list[0]?.voiceId ?? "Matthew";
+  return list[0]?.voiceId ?? "en-US-matthew";
 }
 
 // Human-readable language name + native script note, used to instruct the LLM.
